@@ -1,0 +1,5 @@
+/* Fonts used across the kit: Outfit (UI/display), Roboto Mono (code), Inter (dense data/table
+   fallback), Oxanium (wordmark only). No local font binaries were supplied with the .fig, so
+   these are the real families loaded live from Google Fonts (not a substitution — same faces
+   the file specifies). Swap for self-hosted files whenever brand/legal wants that. */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Roboto+Mono:wght@400&family=Inter:wght@400;600&family=Oxanium:wght@800&display=swap');
