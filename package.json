@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "npm run check:ds && npm run check:conformance && vite build",
     "preview": "vite preview",
+    "gen:ds": "node scripts/gen-ds-manifest.mjs",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "check:ds": "node scripts/check-ds-law.mjs",
     "check:conformance": "node scripts/check-conformance.mjs"
   },
