@@ -1,0 +1,66 @@
+/**
+ * PONTE DE TOKENS — faz os componentes vivos usarem EXATAMENTE os tokens do Lumos.
+ *
+ * O @nuxt/ui lê variáveis `--ui-*`. O Lumos publica `--color-*` no fig-tokens.css.
+ * Sem esta ponte, as peças no preview apareciam com a paleta do repositório do
+ * Storybook em vez da paleta do builder — dois cinzas diferentes, dois azuis
+ * diferentes, na mesma tela.
+ *
+ * Cada linha aponta para um token que EXISTE no fig-tokens.css. Nenhum valor
+ * literal, nenhuma cor inventada: se o Lumos mudar, isto muda junto.
+ *
+ * MORA EM src/pecas/ e é COPIADO no build. Escrito direto em _pecas/ ele era
+ * apagado pelo `emptyOutDir` do Vite a cada compilação — e o sintoma era um
+ * 404 silencioso, com o preview voltando à paleta errada sem avisar.
+ */
+:root {
+  /* Papéis de cor. O Lumos chama de `danger` o que o @nuxt/ui chama de `error`. */
+  --ui-primary: var(--color-primary-default);
+  --ui-secondary: var(--color-secondary-default);
+  --ui-success: var(--color-success-default);
+  --ui-info: var(--color-info-default);
+  --ui-warning: var(--color-warning-default);
+  --ui-error: var(--color-danger-default);
+
+  /* Superfícies */
+  --ui-bg: var(--color-muted-950);
+  --ui-bg-muted: var(--color-muted-900);
+  --ui-bg-elevated: var(--color-muted-800);
+  --ui-bg-accented: var(--color-muted-700);
+  --ui-bg-inverted: var(--color-muted-50);
+
+  /* Bordas */
+  --ui-border: var(--color-muted-border);
+  --ui-border-muted: var(--color-muted-border-muted);
+  --ui-border-accented: var(--color-muted-700);
+  --ui-border-inverted: var(--color-muted-50);
+
+  /* Texto */
+  --ui-text: var(--color-muted-text);
+  --ui-text-muted: var(--color-muted-text-muted);
+  --ui-text-dimmed: var(--color-muted-text-dimmed);
+  --ui-text-toned: var(--color-muted-300);
+  --ui-text-highlighted: var(--color-muted-50);
+  --ui-text-inverted: var(--color-muted-950);
+
+  /* Escala neutra */
+  --ui-color-neutral-50: var(--color-muted-50);
+  --ui-color-neutral-100: var(--color-muted-100);
+  --ui-color-neutral-200: var(--color-muted-200);
+  --ui-color-neutral-300: var(--color-muted-300);
+  --ui-color-neutral-400: var(--color-muted-400);
+  --ui-color-neutral-500: var(--color-muted-500);
+  --ui-color-neutral-600: var(--color-muted-600);
+  --ui-color-neutral-700: var(--color-muted-700);
+  --ui-color-neutral-800: var(--color-muted-800);
+  --ui-color-neutral-900: var(--color-muted-900);
+
+  /* Raio: o builder guarda o dele no estado `raio` (12 por padrão). */
+  --ui-radius: 12px;
+}
+
+/* A peça viva herda a tipografia do builder — Outfit, a fonte do Lumos. */
+.lumos-peca-viva,
+.lumos-peca-viva * {
+  font-family: Outfit, sans-serif;
+}
