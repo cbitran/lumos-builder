@@ -376,7 +376,7 @@ function justifyFor(block: LayoutBlock) {
                 @pointerdown.stop
                 @click.stop="emit('remove', block.id)"
               >
-                <UIcon name="i-heroicons-trash" class="size-3" />
+                <UIcon name="i-lucide-trash-2" class="size-3" />
               </button>
 
               <span

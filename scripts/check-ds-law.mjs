@@ -11,8 +11,11 @@ import { fileURLToPath } from 'node:url'
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const SRC = join(ROOT, 'src')
 
-// Sets de ícone autorizados: o DS usa Heroicons (visto em UIcon e UInput no Figma).
-const ALLOWED_ICON_PREFIX = /^i-heroicons-/
+// Set de ícone autorizado: o Storybook do DS usa Lucide em 100% das stories
+// (83 ocorrências, zero heroicons) e é o padrão do @nuxt/ui v4. O ADR-005 do DS
+// diz que o DS possui o SLOT, não a biblioteca — então a trava não existe para
+// impor um set "oficial" do DS, e sim para impedir set MISTO dentro do builder.
+const ALLOWED_ICON_PREFIX = /^i-lucide-/
 const FONT_ALLOWED = /Outfit|var\(--font-/
 
 const RULES = [
@@ -36,8 +39,8 @@ const RULES = [
   },
   {
     name: 'ícone de set não autorizado',
-    re: /["'`]i-(?!heroicons-)[a-z0-9]+[:-][^"'`]+["'`]/g,
-    why: 'o set de ícones do DS é Heroicons',
+    re: /["'`]i-(?!lucide-)[a-z0-9]+[:-][^"'`]+["'`]/g,
+    why: 'o builder usa Lucide — mesmo set do Storybook do DS',
   },
 ]
 

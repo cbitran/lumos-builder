@@ -5,8 +5,8 @@
  * `recipe` = o mesmo componente no arranjo em que a Nacional o usa hoje.
  *            A receita herda do site APENAS o arranjo (o que anda junto, em que
  *            ordem, com que texto). Cor, fonte, ícone e tamanho vêm sempre do DS.
- *            Ex.: a busca no ar usa `mingcute:search-2-line`; aqui usa o set do
- *            DS (Heroicons), porque o DS é a fonte da verdade.
+ *            Ex.: a busca no ar usa `mingcute:search-2-line`; aqui usa Lucide,
+ *            o mesmo set do Storybook do DS.
  *
  * `renders` é o nome do componente registrado globalmente a partir do manifesto
  * gerado (src/ds/nuxt-ui-components.generated.ts) — os mesmos 121 componentes do
@@ -91,7 +91,7 @@ export const CATALOG: Piece[] = [
     recipe: {
       label: 'Receita Nacional',
       description: 'Campo com ícone à frente e placeholder de jogo — como no site, sem botão.',
-      props: { placeholder: 'Pesquise um jogo de cassino...', icon: 'i-heroicons-magnifying-glass', size: 'lg' },
+      props: { placeholder: 'Pesquise um jogo de cassino...', icon: 'i-lucide-search', size: 'lg' },
     },
     fields: [F.placeholder, F.size],
   },
@@ -229,7 +229,7 @@ export const CATALOG: Piece[] = [
   },
   {
     key: 'UIcon', label: 'Ícone', group: 'Conteúdo', renders: 'UIcon', defaultSpan: 1,
-    pure: { description: 'UIcon do DS (Heroicons).', props: { name: 'i-heroicons-star', class: 'size-6' } },
+    pure: { description: 'UIcon do DS (Lucide).', props: { name: 'i-lucide-star', class: 'size-6' } },
     fields: [],
   },
   {
