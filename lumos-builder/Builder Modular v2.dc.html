@@ -462,7 +462,7 @@
 
                 <sc-if value="{{ m.isBotao }}" hint-placeholder-val="{{ false }}">
                   <div style="{{ m.boxStyle }}">
-                    <span style="{{ m.btnStyle }}">
+                    <span onMouseDown="{{ m.onBtnDown }}" onMouseUp="{{ m.onBtnUp }}" onMouseLeave="{{ m.onBtnUp }}" style="{{ m.btnStyle }}">
                       <sc-if value="{{ m.btnIconeEsquerda }}" hint-placeholder-val="{{ false }}">
                         <x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucidePlus" size="14" hint-size="14px,14px"></x-import>
                       </sc-if>
@@ -477,7 +477,7 @@
                 <sc-if value="{{ m.isGrupoBotoes }}" hint-placeholder-val="{{ false }}">
                   <div style="{{ m.boxStyle }}">
                     <sc-for list="{{ m.botoes }}" as="b" hint-placeholder-count="2">
-                      <span style="{{ b.style }}">{{ b.texto }}</span>
+                      <span onMouseDown="{{ b.onDown }}" onMouseUp="{{ m.onGrupoUp }}" onMouseLeave="{{ m.onGrupoUp }}" style="{{ b.style }}">{{ b.texto }}</span>
                     </sc-for>
                   </div>
                 </sc-if>
@@ -488,7 +488,12 @@
                       <sc-if value="{{ m.p.comIcone }}" hint-placeholder-val="{{ false }}">
                         <span style="display:flex;color:rgb(103,108,119)"><x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideSearch" size="15" hint-size="15px,15px"></x-import></span>
                       </sc-if>
-                      <span style="{{ m.placeholderStyle }}">{{ m.p.placeholder }}</span>
+                      <sc-if value="{{ m.campoVivo }}" hint-placeholder-val="{{ false }}">
+                        <input value="{{ m.campoValor }}" onChange="{{ m.onCampoInput }}" onFocus="{{ m.onCampoFoco }}" onBlur="{{ m.onCampoBorrar }}" placeholder="{{ m.p.placeholder }}" style="{{ m.campoInputStyle }}" />
+                      </sc-if>
+                      <sc-if value="{{ m.campoDesenho }}" hint-placeholder-val="{{ true }}">
+                        <span style="{{ m.placeholderStyle }}">{{ m.p.placeholder }}</span>
+                      </sc-if>
                     </div>
                   </div>
                 </sc-if>
@@ -503,7 +508,7 @@
                     </sc-if>
                     <div style="{{ m.tilesStyle }}">
                       <sc-for list="{{ m.tiles }}" as="t" hint-placeholder-count="6">
-                        <div style="{{ m.tileStyle }}">
+                        <div onClick="{{ t.onPick }}" style="{{ t.style }}">
                           <sc-if value="{{ m.p.legenda }}" hint-placeholder-val="{{ true }}">
                             <span style="{{ m.legendaStyle }}">{{ t.nome }}</span>
                           </sc-if>
@@ -517,13 +522,13 @@
                   <div style="{{ m.boxStyle }}">
                     <div style="{{ m.slidesStyle }}">
                       <sc-for list="{{ m.slides }}" as="sl" hint-placeholder-count="3">
-                        <div style="{{ m.slideStyle }}">{{ sl.nome }}</div>
+                        <div onClick="{{ sl.onPick }}" style="{{ sl.style }}">{{ sl.nome }}</div>
                       </sc-for>
                     </div>
                     <sc-if value="{{ m.p.indicadores }}" hint-placeholder-val="{{ true }}">
                       <div style="display:flex;justify-content:center;gap:7px;margin-top:12px;flex-shrink:0">
                         <sc-for list="{{ m.dots }}" as="d" hint-placeholder-count="3">
-                          <span onClick="{{ d.onPick }}" style="{{ d.style }}"></span>
+                          <span onClick="{{ d.onPick }}" style="{{ d.style }}">{{ d.nome }}</span>
                         </sc-for>
                       </div>
                     </sc-if>
@@ -533,7 +538,7 @@
                 <sc-if value="{{ m.isLista }}" hint-placeholder-val="{{ false }}">
                   <div style="{{ m.boxStyle }}">
                     <sc-for list="{{ m.linhas }}" as="l" hint-placeholder-count="4">
-                      <div style="{{ m.linhaStyle }}">
+                      <div onClick="{{ l.onPick }}" style="{{ l.style }}">
                         <sc-if value="{{ m.p.comIcone }}" hint-placeholder-val="{{ true }}">
                           <span style="{{ m.iconeStyle }}"></span>
                         </sc-if>
@@ -560,7 +565,7 @@
                       </sc-for>
                     </div>
                     <sc-for list="{{ m.linhas }}" as="l" hint-placeholder-count="4">
-                      <div style="{{ l.style }}">
+                      <div onClick="{{ l.onPick }}" style="{{ l.style }}">
                         <sc-for list="{{ l.celulas }}" as="cel" hint-placeholder-count="4">
                           <span style="{{ m.tdStyle }}">{{ cel.v }}</span>
                         </sc-for>
@@ -576,7 +581,13 @@
                       <span style="{{ m.tituloAlertaStyle }}">{{ m.p.titulo }}</span>
                       <span style="font-size:12px;color:rgb(129,134,146);text-wrap:pretty">{{ m.p.texto }}</span>
                     </div>
+                    <span onClick="{{ m.onAlertaFechar }}" title="Dispensar" style="{{ m.alertaFecharStyle }}">
+                      <x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideX" size="13" hint-size="13px,13px"></x-import>
+                    </span>
                   </div>
+                  <sc-if value="{{ m.alertaDispensado }}" hint-placeholder-val="{{ false }}">
+                    <div onClick="{{ m.onAlertaRestaurar }}" style="{{ m.alertaDispensadoStyle }}">Alerta dispensado — clique para trazer de volta</div>
+                  </sc-if>
                 </sc-if>
 
                 <sc-if value="{{ m.isProgresso }}" hint-placeholder-val="{{ false }}">
@@ -633,10 +644,17 @@
 
                 <sc-if value="{{ m.isSelect2 }}" hint-placeholder-val="{{ false }}">
                   <div style="{{ m.boxStyle }}">
-                    <div style="{{ m.inputStyle }}">
-                      <span style="{{ m.placeholderStyle }}">{{ m.p.opcao }}</span>
-                      <span style="display:flex;color:rgb(129,134,146)"><x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideChevronDown" size="14" hint-size="14px,14px"></x-import></span>
+                    <div onClick="{{ m.onSelectToggle }}" style="{{ m.inputStyle }}">
+                      <span style="{{ m.placeholderStyle }}">{{ m.selecaoTexto }}</span>
+                      <span style="{{ m.chevronSelStyle }}"><x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideChevronDown" size="14" hint-size="14px,14px"></x-import></span>
                     </div>
+                    <sc-if value="{{ m.selAberto }}" hint-placeholder-val="{{ false }}">
+                      <div style="{{ m.selPainelStyle }}">
+                        <sc-for list="{{ m.selOpcoes }}" as="so" hint-placeholder-count="4">
+                          <div onClick="{{ so.onPick }}" style="{{ so.style }}">{{ so.nome }}</div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
                   </div>
                 </sc-if>
 
@@ -649,9 +667,14 @@
                     <span style="{{ m.chipStyle }}">
                       <span>{{ m.p.texto }}</span>
                       <sc-if value="{{ m.p.removivel }}" hint-placeholder-val="{{ true }}">
-                        <x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideX" size="11" hint-size="11px,11px"></x-import>
+                        <span onClick="{{ m.onChipRemover }}" style="{{ m.chipXStyle }}">
+                          <x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideX" size="11" hint-size="11px,11px"></x-import>
+                        </span>
                       </sc-if>
                     </span>
+                    <sc-if value="{{ m.chipRemovido }}" hint-placeholder-val="{{ false }}">
+                      <span onClick="{{ m.onChipRestaurar }}" style="{{ m.chipRemovidoStyle }}">removido — clique para voltar</span>
+                    </sc-if>
                   </div>
                 </sc-if>
 
@@ -698,14 +721,23 @@
                 </sc-if>
 
                 <sc-if value="{{ m.isModal }}" hint-placeholder-val="{{ false }}">
-                  <div style="{{ m.boxStyle }}">
+                  <div style="{{ m.modalCorpoStyle }}">
                     <span style="{{ m.modalTituloStyle }}">{{ m.p.titulo }}</span>
                     <span style="{{ m.modalTextoStyle }}">{{ m.p.texto }}</span>
                     <div style="{{ m.modalRodapeStyle }}">
-                      <x-import component-from-global-scope="LumosDesignSystem_a19689.UButton" variant="ghost" size="sm" state="default" label="Cancelar" hint-size="auto,32px"></x-import>
-                      <x-import component-from-global-scope="LumosDesignSystem_a19689.UButton" variant="solid" size="sm" state="default" label="Confirmar" hint-size="auto,32px"></x-import>
+                      <div onClick="{{ m.onModalFechar }}" style="{{ m.modalBtnWrap }}">
+                        <x-import component-from-global-scope="LumosDesignSystem_a19689.UButton" variant="ghost" size="sm" state="default" label="Cancelar" hint-size="auto,32px"></x-import>
+                      </div>
+                      <div onClick="{{ m.onModalFechar }}" style="{{ m.modalBtnWrap }}">
+                        <x-import component-from-global-scope="LumosDesignSystem_a19689.UButton" variant="solid" size="sm" state="default" label="Confirmar" hint-size="auto,32px"></x-import>
+                      </div>
                     </div>
                   </div>
+                  <sc-if value="{{ m.modalFechado }}" hint-placeholder-val="{{ false }}">
+                    <div style="{{ m.modalVazioStyle }}">
+                      <div onClick="{{ m.onModalAbrir }}" style="{{ m.modalGatilhoStyle }}">Abrir modal</div>
+                    </div>
+                  </sc-if>
                 </sc-if>
 
                 <sc-if value="{{ m.showChrome }}" hint-placeholder-val="{{ false }}">
@@ -1394,7 +1426,9 @@ class Component extends DCLogic {
   aplicarLayout(novas, descricao, extra) {
     const conflitos = sobreposicoes(novas);
     if (!conflitos.length) {
-      this.setState(Object.assign({ pecas: novas, dirty: true }, extra || {}));
+      const limpo = Object.assign({}, extra || {});
+      delete limpo.pecasAnteriores;
+      this.setState(Object.assign({ pecas: novas, dirty: true }, limpo));
       return true;
     }
     const nomes = [...new Set(conflitos.flat().map(p => p.nome))];
@@ -1405,11 +1439,21 @@ class Component extends DCLogic {
   onConflitoAceitar = () => {
     const c = this.state.conflito;
     if (!c) return;
-    this.setState(Object.assign({ pecas: c.novas, dirty: true, conflito: null }, c.extra));
+    const extra = Object.assign({}, c.extra);
+    delete extra.pecasAnteriores; // é bagagem do cancelamento, não estado
+    this.setState(Object.assign({ pecas: c.novas, dirty: true, conflito: null }, extra));
     this.flash('Sobreposição aplicada');
   };
 
   onConflitoCancelar = () => {
+    const c = this.state.conflito;
+    // Ao adicionar ou soltar, nada foi gravado — basta fechar. Ao redimensionar,
+    // a peça JÁ mudou de tamanho na tela durante o arrasto, então cancelar tem
+    // de devolver o estado anterior; senão o "Cancelar" não cancelaria nada.
+    if (c && c.extra && c.extra.pecasAnteriores) {
+      this.setState({ pecas: c.extra.pecasAnteriores, conflito: null });
+      return;
+    }
     this.setState({ conflito: null });
   };
 
@@ -1608,11 +1652,21 @@ class Component extends DCLogic {
       document.removeEventListener('pointermove', mover);
       document.removeEventListener('pointerup', soltar);
       const colsAtual = this.cols();
+      // Guardado ANTES de calcular o resultado: se a nova medida sobrepuser
+      // alguém e o usuário recusar, é para cá que o layout volta.
+      const antesDoResize = this.state.pecas.map(x => ({ ...x }));
       this.setState(st => {
         if (!ima) return { resizeInfo: null };
         let pecas = resolver(st.pecas, id).map(p => p.id === id ? { ...p, wBase: p.w, xBase: p.x, colsBase: colsAtual } : p);
         if (modo.indexOf('e') >= 0 || modo.indexOf('w') >= 0) pecas = this.reajustarLinha(pecas, id, colsAtual);
-        return { pecas, resizeInfo: null };
+        // Redimensionar também não pode sobrepor em silêncio. A conferência sai
+        // do setState porque `aplicarLayout` pode precisar ABRIR uma pergunta em
+        // vez de gravar, e um setState não decide isso de dentro de si mesmo.
+        queueMicrotask(() => {
+          const nome = (antesDoResize.find(x => x.id === id) || {}).nome || 'peça';
+          this.aplicarLayout(pecas, 'Redimensionar ' + nome, { pecasAnteriores: antesDoResize });
+        });
+        return { resizeInfo: null };
       });
     };
     document.addEventListener('pointermove', mover);
@@ -1892,18 +1946,22 @@ class Component extends DCLogic {
   setGeo(id, key, delta, min, max) {
     this.snapshot();
     const cols = this.cols();
-    this.setState(s => ({
-      dirty: true,
-      pecas: resolver(s.pecas.map(p => {
-        if (p.id !== id) return p;
-        const v = Math.max(min, Math.min(max, p[key] + delta));
-        const next = { ...p, [key]: v };
-        if (key === 'w') next.x = Math.min(p.x, cols - v);
-        if (key === 'h') next.y = Math.min(p.y, ROWS - v);
-        next.wBase = next.w; next.xBase = next.x; next.colsBase = cols;
-        return next;
-      }), id, (key === 'x' || key === 'y') && delta < 0 ? 'cima' : 'baixo')
-    }));
+    const antes = this.state.pecas.map(x => ({ ...x }));
+    const novas = resolver(this.state.pecas.map(p => {
+      if (p.id !== id) return p;
+      const v = Math.max(min, Math.min(max, p[key] + delta));
+      const next = { ...p, [key]: v };
+      if (key === 'w') next.x = Math.min(p.x, cols - v);
+      if (key === 'h') next.y = Math.min(p.y, ROWS - v);
+      next.wBase = next.w; next.xBase = next.x; next.colsBase = cols;
+      return next;
+    }), id, (key === 'x' || key === 'y') && delta < 0 ? 'cima' : 'baixo');
+    // Os steppers do inspector mudam geometria como as alças mudam — então
+    // passam pela mesma conferência. Sem isto, dava para sobrepor pelo painel
+    // mesmo com o arrasto protegido.
+    const nome = (antes.find(x => x.id === id) || {}).nome || 'peça';
+    const acao = key === 'w' || key === 'h' ? 'Redimensionar ' : 'Mover ';
+    this.aplicarLayout(novas, acao + nome, { pecasAnteriores: antes });
   }
 
   blocos(lista) {
@@ -2505,17 +2563,44 @@ class Component extends DCLogic {
         base.btnStyle = { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: raio, fontSize: tamFonte, fontWeight: 600, letterSpacing: '.02em', cursor: 'pointer', color: v === 'Primário' ? 'rgb(18,20,24)' : v === 'Secundário' ? 'rgb(213,215,220)' : cor, background: v === 'Primário' ? 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')' : v === 'Secundário' ? RAISED : 'transparent', boxShadow: v === 'Primário' ? '4px 4px 12px rgba(0,0,0,.45), 0 0 18px ' + cor + '55' : v === 'Secundário' ? SH_UP : 'none' };
         base.btnIconeEsquerda = p.icone === 'Esquerda';
         base.btnIconeDireita = p.icone === 'Direita';
+        // `state` no UButton do Figma tem default/hover/pressed. Aqui o
+        // pressionado vira real: afunda no clique, com o mesmo vocabulário de
+        // relevo do resto do builder.
+        const pressionado = est('press', false);
+        base.onBtnDown = this.vivo(() => this.setRt(m.id, { press: true }));
+        base.onBtnUp = this.vivo(() => this.setRt(m.id, { press: false }));
+        if (vivoAgora && pressionado) {
+          base.btnStyle = { ...base.btnStyle, transform: 'translateY(1px)', boxShadow: v === 'Fantasma' ? 'none' : SH_IN, filter: 'brightness(.94)' };
+        }
       }
       if (m.tipo === 'grupoBotoes') {
         base.boxStyle = { width: '100%', height: '100%', display: 'flex', justifyContent: ALIGN[p.alinhamento || 'Esquerda'], gap: boxW < 220 ? 8 : 12, overflow: 'hidden' };
+        const pressGrupo = est('pressGrupo', null);
+        const afundar = (k, base2) => (vivoAgora && pressGrupo === k)
+          ? { ...base2, transform: 'translateY(1px)', boxShadow: SH_IN, filter: 'brightness(.94)' } : base2;
+        base.onGrupoDown = (k) => this.vivo(() => this.setRt(m.id, { pressGrupo: k }));
+        base.onGrupoUp = this.vivo(() => this.setRt(m.id, { pressGrupo: null }));
+        const cursorGrupo = vivoAgora ? 'pointer' : 'inherit';
         base.botoes = [
-          { key: 'p', texto: p.primario, style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, fontSize: fit(14, 0.34, 11), fontWeight: 600, color: 'rgb(18,20,24)', background: 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')', boxShadow: '4px 4px 12px rgba(0,0,0,.45), 0 0 18px ' + cor + '4d' } },
-          { key: 's', texto: p.secundario, style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, fontSize: fit(14, 0.34, 11), fontWeight: 600, color: 'rgb(157,161,171)', background: RAISED, boxShadow: SH_UP } }
+          { key: 'p', texto: p.primario, onDown: base.onGrupoDown('p'), style: afundar('p', { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, fontSize: fit(14, 0.34, 11), fontWeight: 600, cursor: cursorGrupo, color: 'rgb(18,20,24)', background: 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')', boxShadow: '4px 4px 12px rgba(0,0,0,.45), 0 0 18px ' + cor + '4d' }) },
+          { key: 's', texto: p.secundario, onDown: base.onGrupoDown('s'), style: afundar('s', { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, fontSize: fit(14, 0.34, 11), fontWeight: 600, cursor: cursorGrupo, color: 'rgb(157,161,171)', background: RAISED, boxShadow: SH_UP }) }
         ];
       }
       if (m.tipo === 'campo') {
+        // No canvas o campo é um desenho com o placeholder. No preview vira um
+        // <input> de verdade: `state` no DS tem a variante de foco, e foco só
+        // existe se houver onde digitar.
+        const textoCampo = est('campoValor', '');
+        const focado = est('campoFocado', false);
+        base.campoVivo = vivoAgora;
+        base.campoDesenho = !vivoAgora;
+        base.campoValor = textoCampo;
+        base.onCampoInput = (e) => this.setRt(m.id, { campoValor: e.target.value });
+        base.onCampoFoco = () => this.setRt(m.id, { campoFocado: true });
+        base.onCampoBorrar = () => this.setRt(m.id, { campoFocado: false });
+        base.campoInputStyle = { flex: 1, minWidth: 0, background: 'transparent', border: 0, outline: 0, color: 'rgb(213,215,220)', fontSize: 13, fontFamily: 'Outfit, sans-serif' };
         base.boxStyle = { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' };
-        base.inputStyle = { display: 'flex', alignItems: 'center', gap: 10, flex: 1, height: '100%', padding: '0 14px', borderRadius: raio, background: 'var(--color-surface-input, rgb(40,43,49))', border: '1px solid var(--color-border-default, rgba(255,255,255,.1))', boxSizing: 'border-box' };
+        base.inputStyle = { display: 'flex', alignItems: 'center', gap: 10, flex: 1, height: '100%', padding: '0 14px', borderRadius: raio, background: 'var(--color-surface-input, rgb(40,43,49))', border: '1px solid ' + (focado && vivoAgora ? cor : 'var(--color-border-default, rgba(255,255,255,.1))'), boxSizing: 'border-box', boxShadow: focado && vivoAgora ? '0 0 0 3px ' + cor + '22' : 'none' };
         base.placeholderStyle = { flex: 1, fontSize: 13, color: 'rgb(103,108,119)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
       }
       if (m.tipo === 'grade') {
@@ -2528,19 +2613,44 @@ class Component extends DCLogic {
         base.tilesStyle = { display: 'grid', gridTemplateColumns: 'repeat(' + gc + ', 1fr)', gridAutoRows: '1fr', gap: p.gap, flex: 1, minHeight: 0 };
         base.tileStyle = { position: 'relative', borderRadius: raio, background: RAISED, boxShadow: SH_UP };
         base.legendaStyle = { position: 'absolute', left: 10, bottom: 9, right: 10, fontSize: 11, color: 'rgb(103,108,119)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
-        base.tiles = Array.from({ length: gc * gl }, (_, i) => ({ key: i, nome: 'Item ' + String(i + 1).padStart(2, '0') }));
+        const tileSel = est('tileSel', -1);
+        base.tiles = Array.from({ length: gc * gl }, (_, i) => ({
+          key: i, nome: 'Item ' + String(i + 1).padStart(2, '0'),
+          onPick: this.vivo(() => this.setRt(m.id, { tileSel: i === tileSel ? -1 : i })),
+          style: { ...base.tileStyle, cursor: vivoAgora ? 'pointer' : 'inherit', boxShadow: i === tileSel && vivoAgora ? SH_UP + ', 0 0 0 2px ' + cor : SH_UP }
+        }));
       }
       if (m.tipo === 'carrossel') {
         base.boxStyle = { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
-        base.slidesStyle = { display: 'flex', gap: 14, flex: 1, minHeight: 0 };
         const ns = Math.max(1, Math.min(p.slides, Math.floor(boxW / 130) || 1));
-        base.slides = Array.from({ length: ns }, (_, i) => ({ key: i, nome: 'Slide ' + (i + 1) }));
-        base.slideStyle = { flex: '1 0 0', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, background: RAISED, boxShadow: SH_UP, fontSize: 12, color: 'rgb(103,108,119)' };
+        base.slidesStyle = { display: 'flex', gap: 14, flex: 1, minHeight: 0 };
+        /*
+         * O `slides` deste componente é "slides VISÍVEIS": os N preenchem a
+         * largura e o trilho não tem overflow (medido: scrollWidth 1376 =
+         * clientWidth 1376). Cheguei a fazer o trilho deslizar e estava errado —
+         * não há para onde deslizar. O comportamento honesto aqui é o de
+         * seleção: o slide ativo se destaca, e o indicador acompanha.
+         */
         const slideAtivo = est('slide', 0) % ns;
+        const escolherSlide = (i) => this.vivo(() => this.setRt(m.id, { slide: i }));
+        base.slides = Array.from({ length: ns }, (_, i) => ({
+          key: i, nome: 'Slide ' + (i + 1),
+          onPick: escolherSlide(i),
+          style: { flex: '1 0 0', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, background: RAISED, fontSize: 12, cursor: vivoAgora ? 'pointer' : 'inherit', color: i === slideAtivo && vivoAgora ? cor : 'rgb(103,108,119)', boxShadow: i === slideAtivo && vivoAgora ? SH_UP + ', 0 0 0 2px ' + cor : SH_UP }
+        }));
+        base.slideStyle = { flex: '1 0 0', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: raio, background: RAISED, boxShadow: SH_UP, fontSize: 12, color: 'rgb(103,108,119)' };
+        /*
+         * `nome` com fontSize 0 não é gambiarra: o runtime do Claude Design NÃO
+         * re-renderiza o estilo de um elemento VAZIO. O indicador era
+         * <span></span> e ficava congelado no primeiro estilo — o clique
+         * chegava, o estado mudava, e a tela não acompanhava. Com conteúdo
+         * (invisível) ele volta a ser atualizado. Custou uma hora de
+         * diagnóstico; não remova o `nome`.
+         */
         base.dots = Array.from({ length: ns }, (_, i) => ({
-          key: i,
-          onPick: this.vivo(() => this.setRt(m.id, { slide: i })),
-          style: { width: i === slideAtivo ? 18 : 7, height: 7, borderRadius: 999, background: i === slideAtivo ? cor : SUNK, boxShadow: i === slideAtivo ? '0 0 10px ' + cor : 'inset 1px 1px 3px rgba(0,0,0,.8)', cursor: vivoAgora ? 'pointer' : 'inherit', transition: 'width .18s ease' }
+          key: i, nome: String(i + 1),
+          onPick: escolherSlide(i),
+          style: { width: i === slideAtivo ? 18 : 7, height: 7, borderRadius: 999, background: i === slideAtivo ? cor : SUNK, boxShadow: i === slideAtivo ? '0 0 10px ' + cor : 'inset 1px 1px 3px rgba(0,0,0,.8)', cursor: vivoAgora ? 'pointer' : 'inherit', transition: 'width .18s ease', fontSize: 0, overflow: 'hidden' }
         }));
       }
       if (m.tipo === 'lista') {
@@ -2548,7 +2658,12 @@ class Component extends DCLogic {
         base.linhaStyle = { display: 'flex', alignItems: 'center', gap: 12, flex: 1, minHeight: 0, padding: '0 16px', boxShadow: p.divisorias ? 'inset 0 -1px 0 rgba(0,0,0,.35), inset 0 -2px 0 rgba(255,255,255,.018)' : 'none' };
         base.iconeStyle = { width: 24, height: 24, borderRadius: 8, background: SUNK, boxShadow: 'inset 2px 2px 5px rgba(0,0,0,.6)', flexShrink: 0 };
         base.itemStyle = { flex: 1, fontSize: 13, color: 'rgb(199,203,211)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
-        base.linhas = Array.from({ length: Math.max(1, Math.min(p.itens, cabeH(42))) }, (_, i) => ({ key: i, nome: 'Item da lista ' + (i + 1), valor: p.comValor ? '—' : '' }));
+        const linhaSel = est('linhaSel', -1);
+        base.linhas = Array.from({ length: Math.max(1, Math.min(p.itens, cabeH(42))) }, (_, i) => ({
+          key: i, nome: 'Item da lista ' + (i + 1), valor: p.comValor ? '—' : '',
+          onPick: this.vivo(() => this.setRt(m.id, { linhaSel: i === linhaSel ? -1 : i })),
+          style: { ...base.linhaStyle, cursor: vivoAgora ? 'pointer' : 'inherit', background: i === linhaSel && vivoAgora ? corAlpha(cor, .12) : 'transparent' }
+        }));
       }
       if (m.tipo === 'abas') {
         base.boxStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', gap: p.formato === 'Pílula' ? 6 : 22, padding: p.formato === 'Pílula' ? 4 : 0, borderRadius: raio, background: p.formato === 'Pílula' ? SUNK : 'transparent', boxShadow: p.formato === 'Pílula' ? SH_IN : 'none', boxSizing: 'border-box' };
@@ -2570,14 +2685,25 @@ class Component extends DCLogic {
         base.thStyle = { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgb(103,108,119)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
         base.tdStyle = { fontSize: 12.5, color: 'rgb(186,190,197)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
         base.colunas = Array.from({ length: tc }, (_, i) => ({ key: i, nome: 'Coluna ' + (i + 1) }));
+        const tabSel = est('tabSel', -1);
         base.linhas = Array.from({ length: tl }, (_, r) => ({
           key: r,
-          style: { display: 'grid', gridTemplateColumns: tpl, gap: 14, alignItems: 'center', flex: 1, minHeight: 0, padding: '0 16px', background: p.zebra && r % 2 === 1 ? 'rgba(0,0,0,.18)' : 'transparent' },
+          onPick: this.vivo(() => this.setRt(m.id, { tabSel: r === tabSel ? -1 : r })),
+          style: { display: 'grid', gridTemplateColumns: tpl, gap: 14, alignItems: 'center', flex: 1, minHeight: 0, padding: '0 16px', cursor: vivoAgora ? 'pointer' : 'inherit', background: r === tabSel && vivoAgora ? corAlpha(cor, .12) : (p.zebra && r % 2 === 1 ? 'rgba(0,0,0,.18)' : 'transparent') },
           celulas: Array.from({ length: tc }, (_, c) => ({ key: c, v: c === 0 ? 'Registro ' + (r + 1) : '—' }))
         }));
       }
       if (m.tipo === 'alerta') {
-        base.boxStyle = { ...full, display: 'flex', alignItems: 'center', gap: 13, padding: 16, background: SUNK, boxShadow: SH_IN };
+        // `close` é variante declarada no componente do Figma — o alerta é
+        // dispensável por design. Aqui isso vira o X que some com ele.
+        const alertaVisivel = est('alertaVisivel', true);
+        base.alertaVisivel = alertaVisivel;
+        base.alertaDispensado = vivoAgora && !alertaVisivel;
+        base.onAlertaFechar = this.vivo((e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setRt(m.id, { alertaVisivel: false }); });
+        base.alertaFecharStyle = { display: vivoAgora ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 7, marginLeft: 'auto', flexShrink: 0, color: 'rgb(129,134,146)', cursor: 'pointer' };
+        base.alertaDispensadoStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: raio, background: SUNK, boxShadow: SH_IN, fontSize: 11.5, color: 'rgb(103,108,119)', cursor: 'pointer' };
+        base.onAlertaRestaurar = this.vivo(() => this.setRt(m.id, { alertaVisivel: true }));
+        base.boxStyle = { ...full, display: alertaVisivel ? 'flex' : 'none', alignItems: 'center', gap: 13, padding: 16, background: SUNK, boxShadow: SH_IN };
         base.pontoStyle = { width: 9, height: 9, borderRadius: 999, background: TOM[p.tom], boxShadow: '0 0 10px ' + TOM[p.tom], flexShrink: 0 };
         base.tituloAlertaStyle = { fontSize: 13, fontWeight: 600, color: TOM[p.tom] };
       }
@@ -2621,9 +2747,24 @@ class Component extends DCLogic {
         }));
       }
       if (m.tipo === 'select') {
-        base.boxStyle = { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' };
-        base.inputStyle = { display: 'flex', alignItems: 'center', gap: 10, flex: 1, height: '100%', padding: '0 14px', borderRadius: raio, background: 'var(--color-surface-input, rgb(40,43,49))', border: '1px solid var(--color-border-default, rgba(255,255,255,.1))', boxSizing: 'border-box' };
+        // A story Select do DS abre um painel de opções no clique. `state:
+        // "default"` é a variante fechada; aberto é o outro estado.
+        const selAberto = est('selAberto', false);
+        const selEscolhido = est('selEscolhido', null);
+        const OPCOES = ['Cassino', 'Esportes', 'Ao vivo', 'Promoções'];
+        base.selAberto = vivoAgora && selAberto;
+        base.onSelectToggle = this.vivo(() => this.setRt(m.id, { selAberto: !selAberto }));
+        base.selecaoTexto = selEscolhido || p.opcao;
+        base.selOpcoes = OPCOES.map((o, i) => ({
+          key: i, nome: o,
+          onPick: this.vivo((e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setRt(m.id, { selEscolhido: o, selAberto: false }); }),
+          style: { display: 'flex', alignItems: 'center', height: 32, padding: '0 12px', borderRadius: raio - 4, fontSize: 12.5, cursor: 'pointer', color: o === selEscolhido ? cor : 'rgb(199,203,211)', background: o === selEscolhido ? SUNK : 'transparent' }
+        }));
+        base.selPainelStyle = { position: 'absolute', left: 0, right: 0, top: '100%', marginTop: 6, padding: 6, borderRadius: raio, background: RAISED, boxShadow: SH_UP + ', 0 18px 40px rgba(0,0,0,.5)', zIndex: 400, display: 'flex', flexDirection: 'column', gap: 2 };
+        base.boxStyle = { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' };
+        base.inputStyle = { display: 'flex', alignItems: 'center', gap: 10, flex: 1, height: '100%', padding: '0 14px', borderRadius: raio, background: 'var(--color-surface-input, rgb(40,43,49))', border: '1px solid ' + (selAberto && vivoAgora ? cor : 'var(--color-border-default, rgba(255,255,255,.1))'), boxSizing: 'border-box', cursor: vivoAgora ? 'pointer' : 'inherit' };
         base.placeholderStyle = { flex: 1, fontSize: 13, color: 'rgb(213,215,220)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+        base.chevronSelStyle = { display: 'flex', color: 'rgb(129,134,146)', transform: selAberto && vivoAgora ? 'rotate(180deg)' : 'none', transition: 'transform .18s ease' };
       }
       if (m.tipo === 'avatar') {
         const tam = { xs: 20, sm: 26, md: 34, lg: 44, xl: 56 }[p.tamanho] || 34;
@@ -2631,8 +2772,18 @@ class Component extends DCLogic {
         base.avatarStyle = { width: Math.min(tam, boxH, boxW), height: Math.min(tam, boxH, boxW), borderRadius: 999, background: 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')', color: 'rgb(18,20,24)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.min(tam, boxH, boxW) * 0.38, fontWeight: 700, boxShadow: '0 0 12px ' + cor + '55' };
       }
       if (m.tipo === 'chip') {
+        // `removivel` é propriedade do chip no DS. Removido, ele não some de vez:
+        // vira um vestígio clicável, senão a peça desaparecia do layout e a
+        // pessoa perderia o que tinha posicionado.
+        const chipVivo = est('chipVivo', true);
+        base.chipVivo = chipVivo;
+        base.chipRemovido = vivoAgora && !chipVivo;
+        base.onChipRemover = this.vivo((e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setRt(m.id, { chipVivo: false }); });
+        base.onChipRestaurar = this.vivo(() => this.setRt(m.id, { chipVivo: true }));
+        base.chipXStyle = { display: 'flex', cursor: vivoAgora && p.removivel ? 'pointer' : 'inherit' };
+        base.chipRemovidoStyle = { display: 'inline-flex', alignItems: 'center', height: Math.min(boxH, 28), padding: '0 12px', borderRadius: 999, background: SUNK, boxShadow: SH_IN, fontSize: 11, color: 'rgb(103,108,119)', cursor: 'pointer' };
         base.boxStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: ALIGN[p.alinhamento || 'Esquerda'] };
-        base.chipStyle = { display: 'inline-flex', alignItems: 'center', gap: 7, height: Math.min(boxH, 28), padding: '0 8px 0 12px', borderRadius: 999, background: RAISED, boxShadow: SH_UP, fontSize: 11.5, fontWeight: 600, color: 'rgb(199,203,211)' };
+        base.chipStyle = { display: chipVivo ? 'inline-flex' : 'none', alignItems: 'center', gap: 7, height: Math.min(boxH, 28), padding: '0 8px 0 12px', borderRadius: 999, background: RAISED, boxShadow: SH_UP, fontSize: 11.5, fontWeight: 600, color: 'rgb(199,203,211)' };
       }
       if (m.tipo === 'accordion') {
         base.boxStyle = { width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 };
@@ -2676,7 +2827,19 @@ class Component extends DCLogic {
         base.kbdStyle = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: Math.min(boxH, 26), padding: '0 8px', borderRadius: 6, background: SUNK, boxShadow: 'inset 0 -2px 0 rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06)', fontSize: 11, fontWeight: 600, color: 'rgb(199,203,211)', fontFamily: 'monospace' };
       }
       if (m.tipo === 'modal') {
+        // No canvas o modal é desenhado aberto — é assim que se edita o conteúdo.
+        // No preview ele ganha o ciclo da story Modal do DS: o rodapé fecha e
+        // sobra o gatilho, que reabre.
+        const modalAberto = est('modalAberto', true);
+        base.modalAberto = modalAberto;
+        base.modalFechado = vivoAgora && !modalAberto;
+        base.onModalFechar = this.vivo(() => this.setRt(m.id, { modalAberto: false }));
+        base.onModalAbrir = this.vivo(() => this.setRt(m.id, { modalAberto: true }));
+        base.modalBtnWrap = { display: 'flex', cursor: vivoAgora ? 'pointer' : 'inherit' };
+        base.modalGatilhoStyle = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 36, padding: '0 20px', borderRadius: raio, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'rgb(18,20,24)', background: 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')', boxShadow: '4px 4px 12px rgba(0,0,0,.45), 0 0 18px ' + cor + '55' };
+        base.modalVazioStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' };
         base.boxStyle = { ...painel, display: 'flex', flexDirection: 'column', padding: 20 };
+        base.modalCorpoStyle = { ...base.boxStyle, display: modalAberto ? 'flex' : 'none' };
         base.modalTituloStyle = { fontSize: 16, fontWeight: 600, marginBottom: 8 };
         base.modalTextoStyle = { fontSize: 12.5, color: 'rgb(139,145,157)', lineHeight: 1.5, flex: 1 };
         base.modalRodapeStyle = { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 14 };
