@@ -15,6 +15,18 @@ const props = defineProps<{
   props: Record<string, unknown>
 }>()
 
+/**
+ * Peças que preenchem a coluna inteira. As de fora da lista têm largura
+ * natural — uma etiqueta esticada por 12 colunas não é uma etiqueta.
+ */
+const ESTICAM = new Set([
+  'secao', 'divisor', 'barraNav', 'abas', 'titulo', 'texto', 'imagem',
+  'campo', 'busca', 'grade', 'carrossel', 'lista', 'tabela', 'alerta',
+  'progresso', 'skeleton', 'modal', 'select', 'radioGroup', 'accordion',
+  'grupoBotoes', 'pagination', 'breadcrumb',
+])
+const estica = ESTICAM.has(props.tipo)
+
 // O renderer trabalha sobre uma `Peca`; aqui só existe tipo + props, porque
 // posição e tamanho quem controla é a grade do builder React, do lado de fora.
 const peca = (): Peca => ({
@@ -30,21 +42,33 @@ const peca = (): Peca => ({
 
 <template>
   <UApp>
-    <div class="lumos-peca-viva">
+    <div class="lumos-peca-viva" :data-estica="estica ? 'sim' : 'nao'">
       <PecaRenderer :peca="peca()" :inerte="false" />
     </div>
   </UApp>
 </template>
 
 <style>
-/* A peça preenche a célula que o builder reservou para ela na grade. */
+/* A peça ocupa a célula que o builder reservou na grade. */
 .lumos-peca-viva {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
+  min-width: 0;
 }
+
+/*
+  Esticar TODO filho para 100% era errado: etiqueta, chip, avatar e tecla têm
+  largura natural, e esticados viravam barras atravessando a tela — nada
+  parecido com o que o modo de edição mostra.
+  Quem estica é só quem estica de verdade num layout.
+*/
 .lumos-peca-viva > * {
+  max-width: 100%;
+  min-width: 0;
+}
+.lumos-peca-viva[data-estica='sim'] > * {
   width: 100%;
 }
 </style>
