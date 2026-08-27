@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:ds && vite build",
+    "build": "npm run check:ds && npm run check:conformance && vite build",
     "preview": "vite preview",
-    "check:ds": "node scripts/check-ds-law.mjs"
+    "check:ds": "node scripts/check-ds-law.mjs",
+    "check:conformance": "node scripts/check-conformance.mjs"
   },
   "dependencies": {
     "@nuxt/ui": "4.9.0",

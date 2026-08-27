@@ -7,6 +7,7 @@ import ui from '@nuxt/ui/vue-plugin'
 // o que não passa pelo auto-import de build-time. Mesmo arranjo do Storybook do DS.
 import { nuxtUiComponents } from './ds/nuxt-ui-components.generated'
 import App from './App.vue'
+import Harness from './harness/Harness.vue'
 import './main.css'
 
 // Fora do Nuxt, o @nuxt/ui precisa de head provider explícito (o plugin de cores
@@ -17,7 +18,12 @@ const router = createRouter({
   routes: [{ path: '/', component: { template: '<div />' } }],
 })
 
-const app = createApp(App)
+// Harness em /?harness=1: monta todas as peças do catálogo e mede a altura de
+// cada uma. Fica na MESMA aplicação de propósito — um portão que roda noutro
+// arranjo de plugins não prova nada sobre o builder de verdade.
+const ehHarness = new URLSearchParams(location.search).has('harness')
+
+const app = createApp(ehHarness ? Harness : App)
 app.use(createHead())
 app.use(ui)
 app.use(router)
