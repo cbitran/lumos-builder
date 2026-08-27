@@ -993,6 +993,20 @@
     </div>
   </sc-if>
 
+  <sc-if value="{{ conflitoAberto }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ conflitoOverlayStyle }}">
+      <div style="{{ conflitoCaixaStyle }}">
+        <span style="font-size:15px;font-weight:600">Isso vai sobrepor outro elemento</span>
+        <span style="font-size:12.5px;line-height:1.55;color:rgb(139,145,157);text-wrap:pretty">{{ conflitoTexto }}</span>
+        <span style="font-size:11.5px;line-height:1.5;color:rgb(103,108,119);text-wrap:pretty">Não coube na altura do frame. Você pode aumentar as linhas da grade no painel Grade, ou colocar por cima mesmo assim.</span>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+          <div onClick="{{ onConflitoCancelar }}" style="{{ conflitoCancelarStyle }}">Cancelar</div>
+          <div onClick="{{ onConflitoAceitar }}" style="{{ conflitoAceitarStyle }}">Colocar por cima</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
     <div style="{{ toastStyle }}">
       <span style="{{ toastDotStyle }}"></span>
@@ -1259,6 +1273,20 @@ function colide(a, b) {
   return sobrepoe(a, b);
 }
 
+/**
+ * Pares que REALMENTE se sobrepõem. A seção que contém a peça não conta —
+ * container abrigando conteúdo é o comportamento desejado, não colisão.
+ */
+function sobreposicoes(lista) {
+  const out = [];
+  for (let i = 0; i < lista.length; i++) {
+    for (let j = i + 1; j < lista.length; j++) {
+      if (colide(lista[i], lista[j])) out.push([lista[i], lista[j]]);
+    }
+  }
+  return out;
+}
+
 function resolver(lista, movedId, direcao) {
   const dir = direcao === 'cima' ? -1 : 1;
   const out = lista.map(p => ({ ...p }));
@@ -1335,6 +1363,9 @@ class Component extends DCLogic {
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
+      // Sobreposição pendente de decisão. O layout só sobrepõe se o usuário
+      // mandar: `resolver` empurra o que dá, e o que não couber vira pergunta.
+      conflito: null,
       // COMPORTAMENTO — estado vivo de cada peça, por id.
       // Só é lido no modo preview (o olho da barra). No modo de edição a peça
       // mostra os valores configurados no inspector; no preview ela RESPONDE:
@@ -1349,6 +1380,38 @@ class Component extends DCLogic {
   selecaoTotal() {
     return [this.state.selectedId, ...this.state.selecaoExtra].filter(Boolean);
   }
+
+  /**
+   * Aplica uma mudança de layout SEM sobrepor em silêncio.
+   *
+   * O `resolver` empurra para baixo quem estiver no caminho, mas o frame tem
+   * altura fixa: quando não há para onde empurrar, ele grampeia a peça de volta
+   * para dentro e duas peças acabam uma por cima da outra sem ninguém avisar.
+   * Era assim que a barra de navegação aparecia atravessando o painel.
+   *
+   * Agora o resultado é conferido antes de valer. Sobrepôs? Pergunta.
+   */
+  aplicarLayout(novas, descricao, extra) {
+    const conflitos = sobreposicoes(novas);
+    if (!conflitos.length) {
+      this.setState(Object.assign({ pecas: novas, dirty: true }, extra || {}));
+      return true;
+    }
+    const nomes = [...new Set(conflitos.flat().map(p => p.nome))];
+    this.setState({ conflito: { novas: novas, extra: extra || {}, descricao: descricao, nomes: nomes } });
+    return false;
+  }
+
+  onConflitoAceitar = () => {
+    const c = this.state.conflito;
+    if (!c) return;
+    this.setState(Object.assign({ pecas: c.novas, dirty: true, conflito: null }, c.extra));
+    this.flash('Sobreposição aplicada');
+  };
+
+  onConflitoCancelar = () => {
+    this.setState({ conflito: null });
+  };
 
   /** Lê o estado vivo de uma peça, caindo no valor configurado quando ainda não houve interação. */
   rt(id, chave, padrao) {
@@ -1615,8 +1678,11 @@ class Component extends DCLogic {
     this.snapshot();
     if (d.kind === 'novo') {
       const nova = { id: 'c' + (proximoUid()), tipo: d.tipo, nome: d.nome, icone: d.icone, visivel: true, x: g.x, y: g.y, w: g.w, h: g.h, wBase: g.w, xBase: g.x, colsBase: this.cols(), p: { ...DEFAULTS[d.tipo], ...(d.props || {}), visivelPara: 'Todos', ocultarMobile: false } };
-      this.setState(s => ({ pecas: resolver(s.pecas.concat([nova]), nova.id, g.dirCima ? 'cima' : 'baixo'), selectedId: nova.id, drag: null, ghost: null, dirty: true }));
-      this.flash(d.nome + ' · coluna ' + (g.x + 1) + ', linha ' + (g.y + 1));
+      const novas = resolver(this.state.pecas.concat([nova]), nova.id, g.dirCima ? 'cima' : 'baixo');
+      this.setState({ drag: null, ghost: null });
+      if (this.aplicarLayout(novas, 'Soltar ' + d.nome, { selectedId: nova.id })) {
+        this.flash(d.nome + ' · coluna ' + (g.x + 1) + ', linha ' + (g.y + 1));
+      }
     } else {
       this.setState(s => {
         const dx = g.x - (s.pecas.find(p => p.id === d.id) || {}).x;
@@ -1636,7 +1702,11 @@ class Component extends DCLogic {
           return { ...p, x: Math.max(0, Math.min(cols - p.w, g.x + outro.dx)), y: Math.max(0, Math.min(ROWS - p.h, g.y + outro.dy)) };
         });
         pecas = ima ? resolver(pecas, d.id, g.dirCima ? 'cima' : 'baixo') : pecas;
-        return { pecas, drag: null, ghost: null, dirty: true };
+        // A conferência acontece fora do setState: `aplicarLayout` pode precisar
+        // ABRIR uma pergunta em vez de gravar, e um setState não pode decidir
+        // isso de dentro de si mesmo.
+        queueMicrotask(() => this.aplicarLayout(pecas, 'Mover ' + (original.nome || 'peça')));
+        return { drag: null, ghost: null };
       });
     }
   };
@@ -2216,13 +2286,14 @@ class Component extends DCLogic {
           if (!this.umaVez('add:' + g.grupo + i.nome)) return;
           const w = Math.min(i.w, cols);
           const id = 'c' + (proximoUid());
-          this.setState(st => {
-            const maxY = st.pecas.reduce((acc, p) => Math.max(acc, p.y + p.h), 0);
-            const pos = this.posicionar(0, maxY, w, i.h);
-            const nova = { id, tipo: i.tipo, nome: i.nome, icone: i.icone, visivel: true, ...pos, wBase: pos.w, xBase: pos.x, colsBase: this.cols(), p: { ...DEFAULTS[i.tipo], ...(i.props || {}), visivelPara: 'Todos', ocultarMobile: false } };
-            return { pecas: resolver(st.pecas.concat([nova]), id), selectedId: id, dirty: true };
-          });
-          this.flash(i.nome + ' adicionado');
+          const st = this.state;
+          const maxY = st.pecas.reduce((acc, p) => Math.max(acc, p.y + p.h), 0);
+          const pos = this.posicionar(0, maxY, w, i.h);
+          const nova = { id, tipo: i.tipo, nome: i.nome, icone: i.icone, visivel: true, ...pos, wBase: pos.w, xBase: pos.x, colsBase: this.cols(), p: { ...DEFAULTS[i.tipo], ...(i.props || {}), visivelPara: 'Todos', ocultarMobile: false } };
+          const novas = resolver(st.pecas.concat([nova]), id);
+          if (this.aplicarLayout(novas, 'Adicionar ' + i.nome, { selectedId: id })) {
+            this.flash(i.nome + ' adicionado');
+          }
         }
       }))
     })).filter(g => g.itens.length);
@@ -2647,6 +2718,19 @@ class Component extends DCLogic {
       campoPos('h', 'Altura (lin)', sel.h, 1, ROWS, v => this.setGeo(sel.id, 'h', v - sel.h, 1, ROWS))
     ] : [];
 
+    // ── Pergunta de sobreposição ────────────────────────────────────────────
+    // Mesma linguagem do resto do builder: relevo, canto arredondado, o
+    // primário da marca no botão de confirmar. Nada de cor literal nova.
+    const conflitoAberto = !!s.conflito;
+    const conflitoTexto = s.conflito
+      ? (s.conflito.descricao + ' vai ficar por cima de: ' + s.conflito.nomes.join(', ') + '.')
+      : '';
+    const conflitoOverlayStyle = { position: 'absolute', inset: 0, background: 'rgba(10,11,13,.72)', zIndex: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+    const conflitoCaixaStyle = { width: 420, padding: 22, borderRadius: 18, background: RAISED, boxShadow: '0 30px 80px rgba(0,0,0,.6), ' + SH_UP, display: 'flex', flexDirection: 'column', gap: 14 };
+    const conflitoBtnBase = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 36, padding: '0 18px', borderRadius: 11, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' };
+    const conflitoCancelarStyle = { ...conflitoBtnBase, background: SUNK, boxShadow: SH_IN, color: 'rgb(199,203,211)' };
+    const conflitoAceitarStyle = { ...conflitoBtnBase, background: 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')', color: 'rgb(18,20,24)', boxShadow: '0 0 16px ' + cor + '55' };
+
     const painelInfo = {
       modulos: ['Biblioteca', 'Primitivos do Lumos. Arraste para a grade e componha do zero.'],
       estrutura: ['Camadas', s.pecas.length + ' componente(s) na página.'],
@@ -2746,6 +2830,10 @@ class Component extends DCLogic {
       onSairHoverRail: () => this.setState({ hoverRail: null }),
       railTooltipStyle: { position: 'absolute', left: 50, top: '50%', transform: 'translateY(-50%)', whiteSpace: 'nowrap', padding: '6px 10px', borderRadius: 8, background: 'rgb(18,20,24)', color: 'rgb(213,215,220)', fontSize: 11, fontWeight: 600, boxShadow: '0 8px 20px rgba(0,0,0,.6)', zIndex: 90, pointerEvents: 'none' },
       isModulos: s.rail === 'modulos', isEstrutura: s.rail === 'estrutura', isGrade: s.rail === 'grade', isTema: s.rail === 'tema',
+      conflitoAberto, conflitoTexto, conflitoOverlayStyle, conflitoCaixaStyle,
+      conflitoCancelarStyle, conflitoAceitarStyle,
+      onConflitoAceitar: this.onConflitoAceitar,
+      onConflitoCancelar: this.onConflitoCancelar,
       painelTitulo: painelInfo[0], painelSubtitulo: painelInfo[1],
       busca: s.busca, onBusca: e => this.setState({ busca: e.target.value }),
       biblioteca, semResultado: biblioteca.length === 0,
