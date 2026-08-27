@@ -1,0 +1,12 @@
+/* Ponte para a fonte da verdade. tokens.css já traz Tailwind 4, @nuxt/ui,
+   a fonte Outfit e as variáveis semânticas (--ui-primary, --ui-bg, --font-sans).
+   Nada de cor, fonte ou espaçamento é declarado aqui — nem deve ser. */
+@import "@ds/tokens.css";
+
+html, body, #app { height: 100%; margin: 0; }
+body { font-family: var(--font-sans); }
+
+/* Enquanto um bloco está sendo arrastado, o ponteiro vira "agarrando" na tela
+   toda — inclusive sobre texto e áreas vazias, que senão voltariam à seta. */
+body.arrastando,
+body.arrastando * { cursor: grabbing !important; }
