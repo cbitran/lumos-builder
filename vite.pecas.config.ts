@@ -42,3 +42,7 @@ export default defineConfig({
     },
   },
 })
+
+// Selo de versão no <script> do builder: o .dc.html é servido estático, e sem
+// isso o navegador continua rodando o bundle antigo depois de um rebuild — o
+// que já me fez diagnosticar como bug do componente algo que era só cache.

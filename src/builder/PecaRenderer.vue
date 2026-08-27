@@ -305,11 +305,15 @@ export default defineComponent({
 
       // ── Feedback ─────────────────────────────────────────────────────────
       case 'alerta':
+        // `close` não é enfeite: o componente do Figma declara `close: true`,
+        // ou seja, a variante dispensável faz parte do DS. Sem passar o prop,
+        // o alerta ficava sem o X e a variante existia só no papel.
         return h(C('UAlert')!, {
           title: s(p.titulo, 'Título do aviso'),
           description: s(p.texto, ''),
           color: TOM[s(p.tom, 'Info')] ?? 'info',
           variant: 'soft',
+          close: true,
           style: { width: '100%' },
         })
       case 'progresso':
@@ -381,8 +385,13 @@ export default defineComponent({
 
       // ── Navegação ────────────────────────────────────────────────────────
       case 'breadcrumb':
+        // Sem `to`, o UBreadcrumb desenha texto morto. Uma trilha em que não se
+        // clica não é uma trilha — é uma legenda.
         return h(C('UBreadcrumb')!, {
-          items: lista(n(p.itens, 3)).map((i) => ({ label: ['Início', 'Cassino', 'Slots', 'Fortune Tiger'][i] ?? 'Nível' })),
+          items: lista(n(p.itens, 3)).map((i, _j, todos) => ({
+            label: ['Início', 'Cassino', 'Slots', 'Fortune Tiger'][i] ?? 'Nível',
+            to: i === todos.length - 1 ? undefined : '/',
+          })),
         })
       case 'pagination':
         return h(C('UPagination')!, {

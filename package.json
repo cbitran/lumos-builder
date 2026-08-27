@@ -10,7 +10,8 @@
     "gen:ds": "node scripts/gen-ds-manifest.mjs",
     "test": "node --test \"test/**/*.test.mjs\"",
     "check:ds": "node scripts/check-ds-law.mjs",
-    "check:conformance": "node scripts/check-conformance.mjs"
+    "check:conformance": "node scripts/check-conformance.mjs",
+    "build:pecas": "node scripts/build-pecas.mjs"
   },
   "dependencies": {
     "@nuxt/ui": "4.9.0",
