@@ -33,7 +33,8 @@ const ATE = arg !== -1 ? Number(process.argv[arg + 1]) : 99
 const resultados = []
 /** @param {{task:number, spec:string, nome:string}} meta */
 function regra(meta, fn) {
-  if (meta.task > ATE) return
+  // task 0 = regra aposentada; nunca é cobrada. Ver o bloco REGRAS APOSENTADAS.
+  if (meta.task === 0 || meta.task > ATE) return
   try {
     const problemas = fn() ?? []
     resultados.push({ ...meta, problemas })
@@ -100,6 +101,17 @@ try {
   carregaFalhou = e.message
 }
 
+// Catálogo MODULAR — as 29 peças do Builder Modular v2. É o contrato contra o
+// qual Palco, Biblioteca e Inspector são construídos.
+let TIPOS = null
+let modularFalhou = null
+try {
+  const mod = await carregarTS('src/builder/modular-catalog.ts', ['../ds/nuxt-ui-components.generated'])
+  TIPOS = mod.TIPOS
+} catch (e) {
+  modularFalhou = e.message
+}
+
 const DS = componentesDoDS()
 
 // ── REGRAS ──────────────────────────────────────────────────────────────────
@@ -148,8 +160,19 @@ regra(
   },
 )
 
+
+// ── REGRAS APOSENTADAS ──────────────────────────────────────────────────────
+// As regras abaixo cobravam a arquitetura de árvore `SlotChild`, desenhada em
+// 2026-08-26. Em 2026-08-27 a entrega passou a ser a implementação do
+// `Builder Modular v2.dc.html` (grade 2D, 29 tipos, catálogo modular), e essa
+// árvore deixou de existir.
+//
+// Foram DESATIVADAS (task 0 nunca é cobrada), não apagadas: quem ler o histórico
+// precisa entender que elas foram atendidas ou substituídas, não esquecidas.
+// Um portão que acusa falha falsa é um portão que a equipe aprende a ignorar.
+
 regra(
-  { task: 3, spec: '§3.3', nome: 'toda peça citada numa semente existe no catálogo' },
+  { task: 0, spec: '§3.3 (aposentada)', nome: 'toda peça citada numa semente existe no catálogo' },
   () => {
     const p = []
     const chaves = new Set((CATALOG ?? []).map((x) => x.key))
@@ -165,7 +188,7 @@ regra(
 )
 
 regra(
-  { task: 3, spec: '§3.1', nome: 'nenhum filho de semente carrega posição' },
+  { task: 0, spec: '§3.1 (aposentada)', nome: 'nenhum filho de semente carrega posição' },
   () => {
     const p = []
     for (const peca of CATALOG ?? []) {
@@ -179,7 +202,7 @@ regra(
 )
 
 regra(
-  { task: 3, spec: '§3.3', nome: 'peça com semente declara os slots que semeia' },
+  { task: 0, spec: '§3.3 (aposentada)', nome: 'peça com semente declara os slots que semeia' },
   () => {
     const p = []
     for (const peca of CATALOG ?? []) {
@@ -196,7 +219,7 @@ regra(
 )
 
 regra(
-  { task: 3, spec: '§3.3', nome: 'as peças de comportamento do spec estão no catálogo' },
+  { task: 0, spec: '§3.3 (aposentada)', nome: 'as peças de comportamento do spec estão no catálogo' },
   () => {
     // Todas as peças de comportamento que o Storybook do DS documenta.
     // "Nada fica para depois" (Celio, 2026-08-27) — a lista é fechada, não um alvo.
@@ -210,7 +233,7 @@ regra(
 )
 
 regra(
-  { task: 3, spec: '§3.3', nome: 'a notificação entra como GATILHO, não como bloco' },
+  { task: 0, spec: '§3.3 (aposentada)', nome: 'a notificação entra como GATILHO, não como bloco' },
   () => {
     // Revisão de 2026-08-27 (Celio): "nada fica para depois" — o Toast entra.
     // Mas entra do jeito que o Storybook o demonstra: a story `Triggers` são
@@ -230,7 +253,7 @@ regra(
 )
 
 regra(
-  { task: 2, spec: '§3.1', nome: 'types.ts expõe o modelo de árvore' },
+  { task: 0, spec: '§3.1 (aposentada)', nome: 'types.ts expõe o modelo de árvore' },
   () => {
     const src = ler('src/builder/types.ts') ?? ''
     const p = []
@@ -245,7 +268,7 @@ regra(
 )
 
 regra(
-  { task: 2, spec: '§3.2', nome: 'o renderer nunca declara slot vazio' },
+  { task: 0, spec: '§3.2 (aposentada)', nome: 'o renderer nunca declara slot vazio' },
   () => {
     const src = ler('src/builder/BlockRenderer.vue') ?? ''
     const p = []
@@ -262,7 +285,7 @@ regra(
 )
 
 regra(
-  { task: 2, spec: '§3.4', nome: 'o renderer liga `action: close` ao escopo do slot' },
+  { task: 0, spec: '§3.4 (aposentada)', nome: 'o renderer liga `action: close` ao escopo do slot' },
   () => {
     const src = ler('src/builder/BlockRenderer.vue') ?? ''
     return /action === 'close'/.test(src) && /scope/.test(src)
@@ -272,7 +295,7 @@ regra(
 )
 
 regra(
-  { task: 4, spec: '§3.6', nome: 'o palco separa Editar de Testar' },
+  { task: 0, spec: '§3.6 (aposentada)', nome: 'o palco separa Editar de Testar' },
   () => {
     const stage = ler('src/builder/Stage.vue') ?? ''
     const types = ler('src/builder/types.ts') ?? ''
@@ -305,7 +328,7 @@ regra(
 )
 
 regra(
-  { task: 6, spec: '§3.5', nome: 'o Inspector consome o manifesto com fallback manual' },
+  { task: 0, spec: '§3.5 (aposentada)', nome: 'o Inspector consome o manifesto com fallback manual' },
   () => {
     const cat = ler('src/builder/catalog.ts') ?? ''
     const insp = ler('src/builder/Inspector.vue') ?? ''
@@ -333,6 +356,117 @@ regra(
     return errados.map(
       (a) => `asset "${a}" sem o prefixo /nacional-builder/ — publicado assim, a página sobe em branco`,
     )
+  },
+)
+
+// ── REGRAS DO BUILDER MODULAR (task 10) ─────────────────────────────────────
+// A entrega virou a implementação do `Builder Modular v2.dc.html` ligado ao
+// Storybook. Estas regras são o portão dos agentes que constroem a interface.
+
+regra(
+  { task: 10, spec: 'modular', nome: 'o catálogo modular carrega e tem as 29+ peças' },
+  () => {
+    const p = []
+    if (modularFalhou) p.push(`não carregou src/builder/modular-catalog.ts — ${modularFalhou}`)
+    if (!Array.isArray(TIPOS)) return [...p, 'TIPOS não é um array exportado']
+    if (TIPOS.length < 29) p.push(`só ${TIPOS.length} peças; o desenho tem 29`)
+    return p
+  },
+)
+
+regra(
+  { task: 10, spec: 'modular', nome: 'toda peça aponta para um componente que EXISTE no DS' },
+  () => {
+    // A regra que teria pego o UButtonGroup, agora sobre o catálogo modular.
+    const p = []
+    const proprios = new Set(['nativo', 'composto'])
+    for (const t of TIPOS ?? []) {
+      if (proprios.has(t.renders)) continue
+      if (DS && !DS.has(t.renders)) {
+        p.push(`peça "${t.tipo}" renderiza "${t.renders}", que NÃO existe no @nuxt/ui 4.9`)
+      }
+    }
+    return p
+  },
+)
+
+regra(
+  { task: 10, spec: 'modular', nome: 'nenhum ícone fora do set Lucide no catálogo modular' },
+  () => {
+    const p = []
+    for (const t of TIPOS ?? []) {
+      if (t.icone && !String(t.icone).startsWith('i-lucide-')) {
+        p.push(`peça "${t.tipo}" usa o ícone ${t.icone}`)
+      }
+    }
+    return p
+  },
+)
+
+regra(
+  { task: 10, spec: 'modular', nome: 'todo campo declara uma aba válida do desenho' },
+  () => {
+    const p = []
+    const validas = new Set(['conteudo', 'estilo', 'regras'])
+    for (const t of TIPOS ?? []) {
+      for (const c of t.campos ?? []) {
+        if (!validas.has(c.aba)) p.push(`"${t.tipo}".${c.key} tem aba "${c.aba}"`)
+        if (c.tipo === 'select' && !c.opcoes?.length) p.push(`"${t.tipo}".${c.key} é select sem opções`)
+        if (c.tipo === 'range' && (c.min === undefined || c.max === undefined)) {
+          p.push(`"${t.tipo}".${c.key} é range sem min/max`)
+        }
+      }
+    }
+    return p
+  },
+)
+
+regra(
+  { task: 10, spec: 'modular', nome: 'o Palco separa Editar de Visualizar e tem o escudo' },
+  () => {
+    const src = ler('src/builder/Palco.vue')
+    if (!src) return ['src/builder/Palco.vue ainda não existe']
+    const p = []
+    if (!/absolute inset-0/.test(src)) {
+      p.push('não achei o escudo de clique. Sem ele, clicar no gatilho do Modal abre o modal em vez de selecionar a peça, e ela fica impossível de posicionar')
+    }
+    if (!/PecaRenderer/.test(src)) p.push('o Palco não usa o PecaRenderer — as peças não seriam componentes do DS')
+    if (!/colide/.test(src)) p.push('o Palco não usa `colide()` — sem ela a seção não funciona como container')
+    if (!/visualizar|editar/.test(src)) p.push('o Palco não distingue os modos')
+    return p
+  },
+)
+
+regra(
+  { task: 10, spec: 'modular', nome: 'a Biblioteca entrega o tipo no formato que o Palco lê' },
+  () => {
+    const bib = ler('src/builder/Biblioteca.vue')
+    const palco = ler('src/builder/Palco.vue')
+    if (!bib) return ['src/builder/Biblioteca.vue ainda não existe']
+    const p = []
+    const CHAVE = 'application/x-lumos-tipo'
+    if (!bib.includes(CHAVE)) p.push(`a Biblioteca não usa a chave "${CHAVE}" no dataTransfer`)
+    if (palco && !palco.includes(CHAVE)) p.push(`o Palco não lê a chave "${CHAVE}" — arrastar não funcionaria`)
+    return p
+  },
+)
+
+regra(
+  { task: 10, spec: 'modular', nome: 'o Inspector tem as três abas e o range é range' },
+  () => {
+    const src = ler('src/builder/InspetorModular.vue')
+    if (!src) return ['src/builder/InspetorModular.vue ainda não existe']
+    const p = []
+    for (const a of ['conteudo', 'estilo', 'regras']) {
+      if (!src.includes(a)) p.push(`o Inspector não trata a aba "${a}"`)
+    }
+    if (!/type="range"/.test(src)) {
+      p.push('não achei `type="range"`. Um campo de faixa renderizado como select é um controle mentiroso')
+    }
+    if (!/DS_MANIFEST/.test(src)) {
+      p.push('o Inspector não lê o DS_MANIFEST — era o ponto do "conectar ao Storybook"')
+    }
+    return p
   },
 )
 
