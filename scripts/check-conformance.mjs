@@ -198,17 +198,34 @@ regra(
 regra(
   { task: 3, spec: '§3.3', nome: 'as peças de comportamento do spec estão no catálogo' },
   () => {
-    const exigidas = ['UModal', 'UDrawer', 'UDropdownMenu', 'UTooltip', 'UPopover', 'UChip', 'UFieldGroup', 'UCarousel', 'texto']
+    // Todas as peças de comportamento que o Storybook do DS documenta.
+    // "Nada fica para depois" (Celio, 2026-08-27) — a lista é fechada, não um alvo.
+    const exigidas = [
+      'UModal', 'UDrawer', 'UDropdownMenu', 'UTooltip', 'UPopover',
+      'UChip', 'UFieldGroup', 'UCarousel', 'UCollapsible', 'toast', 'texto',
+    ]
     const chaves = new Set((CATALOG ?? []).map((x) => x.key))
     return exigidas.filter((k) => !chaves.has(k)).map((k) => `peça "${k}" ausente`)
   },
 )
 
 regra(
-  { task: 3, spec: '§3.3', nome: 'UToast fica FORA do catálogo (decisão do spec)' },
+  { task: 3, spec: '§3.3', nome: 'a notificação entra como GATILHO, não como bloco' },
   () => {
-    const tem = (CATALOG ?? []).some((x) => x.renders === 'UToast' || x.key === 'UToast')
-    return tem ? ['UToast entrou no catálogo — o spec §3.3 o exclui: ele é disparado por useToast() e renderizado pelo <UApp>, não é bloco posicionável'] : []
+    // Revisão de 2026-08-27 (Celio): "nada fica para depois" — o Toast entra.
+    // Mas entra do jeito que o Storybook o demonstra: a story `Triggers` são
+    // botões que chamam useToast().add(). Um "bloco toast" posicionado na grade
+    // seria mentira — quem o desenha é o container do <UApp>, não a grade.
+    const p = []
+    const peca = (CATALOG ?? []).find((x) => x.key === 'toast')
+    if (!peca) {
+      p.push('falta a peça "toast" — a story Triggers do Storybook dispara useToast().add() a partir de um botão')
+      return p
+    }
+    if (peca.renders === 'UToast') {
+      p.push('a peça "toast" renderiza UToast direto. UToast é desenhado pelo container do <UApp>; na grade ele não aparece. Renderize o GATILHO (UButton) e dispare useToast().add() no clique')
+    }
+    return p
   },
 )
 
