@@ -174,14 +174,21 @@ function moverPeca(id: string, x: number, y: number) {
   const dx = x - p.x
   const dy = y - p.y
   if (!dx && !dy) return
+  // A lista de filhos sai ANTES de mover a seção: quem responde ao evento
+  // atualiza a peça na hora, e perguntar depois devolveria quem passou a estar
+  // dentro da posição NOVA — arrastando junto peças que nunca estiveram lá.
+  const filhos = filhosDaSecao(p, props.pecas)
   emit('mover', id, x, y)
-  for (const filho of filhosDaSecao(p, props.pecas)) {
+  for (const filho of filhos) {
     emit('mover', filho.id, Math.max(0, filho.x + dx), Math.max(0, filho.y + dy))
   }
 }
 
 function aoIniciarArrasto(e: DragEvent, p: Peca) {
-  if (!editando.value) return
+  // Uma alça vive DENTRO da peça arrastável: sem esta guarda, puxar a alça
+  // dispararia o arrasto do HTML5 junto e a peça mudaria de lugar em vez de
+  // mudar de tamanho.
+  if (!editando.value || redimensionando.value) return e.preventDefault()
   e.dataTransfer?.setData(MIME_MOVER, p.id)
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
   arrasto.value = { w: p.w, h: p.h }
@@ -330,7 +337,7 @@ function iniciarRedimensionar(e: PointerEvent, p: Peca, alca: Alca) {
               p.tipo === 'secao' ? 'z-0' : 'z-10',
             ]"
             :style="estiloDa(p)"
-            :draggable="editando"
+            :draggable="editando && !redimensionando"
             @dragstart="aoIniciarArrasto($event, p)"
             @dragend="aoTerminarArrasto"
           >
