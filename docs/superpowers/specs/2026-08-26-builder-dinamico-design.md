@@ -25,6 +25,13 @@ O resultado está documentado no próprio código, em `src/builder/catalog.ts`:
 > blocos: UButtonGroup, UCarousel e UChip. Renderizavam com altura zero, o que
 > na prática é uma peça que some ao ser solta.
 
+**Correção apurada durante o design:** `UButtonGroup` **não existe** no `@nuxt/ui`
+4.9.0 — foi renomeado para **`UFieldGroup`**, e é esse o nome presente no
+manifesto de 121 componentes (`ls node_modules/@nuxt/ui/dist/runtime/components/`
+não tem `ButtonGroup.vue`; tem `FieldGroup.vue`). A altura zero daquela peça não
+vinha da falta de filhos: vinha de o componente não existir. Para `UCarousel` e
+`UChip`, que existem, o diagnóstico de filhos está correto.
+
 E `UModal`, `UDrawer`, `UDropdownMenu`, `UTooltip` e `UPopover` nunca chegaram ao
 catálogo pela mesma razão.
 
@@ -121,7 +128,7 @@ Slots confirmados por leitura direta das stories do DS
 | `UTooltip` | gatilho | — | **prop `text`** |
 | `UPopover` | gatilho | `#content` | slots |
 | `UChip` | elemento envolvido | — | props `text`/`color`/`position` |
-| `UButtonGroup` | botões | — | slots |
+| `UFieldGroup` | botões/campos | — | slots |
 | `UCard` | corpo | `#header`, `#footer` | slots |
 | `UCarousel` | **scoped slot `{ item }`** | — | prop `items` + template por slide |
 
@@ -245,7 +252,7 @@ uma. A verificação é executada e evidenciada:
 2. `npm run build` passa.
 3. No navegador, com screenshot de cada um: Modal abre e fecha pelo rodapé;
    Drawer desliza; Dropdown abre com os itens; Tooltip aparece no hover; Chip
-   envolve o elemento; ButtonGroup agrupa; Carousel navega; toggle Editar/Testar
+   envolve o elemento; FieldGroup agrupa; Carousel navega; toggle Editar/Testar
    alterna corretamente.
 4. Build servido a partir do `base` de produção, para pegar erro de caminho antes
    do deploy.
