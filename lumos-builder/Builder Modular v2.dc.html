@@ -406,26 +406,36 @@
         <div style="{{ canvasCameraStyle }}">
         </sc-if>
 
-        <div style="{{ frameStyle }}">
-          <div ref="{{ gridRef }}" onDragOver="{{ onGridOver }}" onDragLeave="{{ onGridLeave }}" onDrop="{{ onGridDrop }}" onClick="{{ onCanvasClick }}" onMouseDown="{{ onGridMouseDown }}" style="{{ gridStyle }}">
-            <sc-if value="{{ mostrarMalhaOverlay }}" hint-placeholder-val="{{ false }}">
-              <div style="{{ malhaOverlayStyle }}"></div>
+        <div style="{{ pistaFramesStyle }}">
+        <sc-for list="{{ frames }}" as="f" hint-placeholder-count="1">
+        <div style="{{ f.colunaStyle }}">
+        <sc-if value="{{ f.temRotulo }}" hint-placeholder-val="{{ false }}">
+          <span style="{{ f.rotuloStyle }}">{{ f.rotulo }}</span>
+        </sc-if>
+        <div style="{{ f.frameStyle }}">
+          <div ref="{{ f.gridRef }}" onMouseEnter="{{ f.onGridEnter }}" onDragEnter="{{ f.onGridEnter }}" onDragOver="{{ onGridOver }}" onDragLeave="{{ onGridLeave }}" onDrop="{{ onGridDrop }}" onClick="{{ onCanvasClick }}" onMouseDown="{{ onGridMouseDown }}" style="{{ f.gridStyle }}">
+            <sc-if value="{{ f.mostrarMalhaOverlay }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ f.malhaOverlayStyle }}"></div>
             </sc-if>
+            <sc-if value="{{ f.ativa }}" hint-placeholder-val="{{ true }}">
             <sc-if value="{{ rubberBand }}" hint-placeholder-val="{{ false }}">
               <div style="{{ rubberBandStyle }}"></div>
             </sc-if>
+            </sc-if>
 
-            <sc-if value="{{ mostrarGuias }}" hint-placeholder-val="{{ true }}">
-              <sc-for list="{{ colunasGuia }}" as="c" hint-placeholder-count="12">
+            <sc-if value="{{ f.mostrarGuias }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ f.colunasGuia }}" as="c" hint-placeholder-count="12">
                 <div style="{{ c.style }}"></div>
               </sc-for>
             </sc-if>
 
+            <sc-if value="{{ f.ativa }}" hint-placeholder-val="{{ true }}">
             <sc-if value="{{ ghost }}" hint-placeholder-val="{{ false }}">
               <div style="{{ ghostStyle }}"><span style="{{ ghostLabelStyle }}">{{ ghostLabel }}</span></div>
             </sc-if>
+            </sc-if>
 
-            <sc-for list="{{ pecas }}" as="m" hint-placeholder-count="0">
+            <sc-for list="{{ f.pecas }}" as="m" hint-placeholder-count="0">
               <div data-peca-id="{{ m.id }}" draggable="{{ m.arrastavel }}" onDragStart="{{ m.onDragStart }}" onDragEnd="{{ onDragEnd }}" onClick="{{ m.onSelect }}" onMouseEnter="{{ m.onEntrar }}" onMouseLeave="{{ m.onSair }}" onMouseMove="{{ m.onMoverBorda }}" onMouseDown="{{ m.onMouseDownPeca }}" onContextMenu="{{ m.onContextMenu }}" style="{{ m.wrapStyle }}">
                 <sc-if value="{{ m.mostrarLixeira }}" hint-placeholder-val="{{ false }}">
                   <div onClick="{{ m.onDel }}" title="Remover" style="{{ m.lixeiraStyle }}">
@@ -758,6 +768,9 @@
               </div>
             </sc-if>
           </div>
+        </div>
+        </div>
+        </sc-for>
         </div>
         </div>
       </div>
@@ -1309,6 +1322,29 @@ function colide(a, b) {
  * Pares que REALMENTE se sobrepõem. A seção que contém a peça não conta —
  * container abrigando conteúdo é o comportamento desejado, não colisão.
  */
+/**
+ * PROJEÇÃO — onde a peça cai numa grade de N colunas.
+ *
+ * O builder guarda UM layout, não um por breakpoint: cada peça carrega a medida
+ * base (`wBase`, `xBase`, `colsBase`) e cada viewport é uma PROJEÇÃO dela. É o
+ * que `trocarBreakpoint` já fazia; aqui a conta virou função pura para poder
+ * rodar cinco vezes na mesma tela sem escrever de volta no estado.
+ *
+ * Consequência direta: mexer numa tela reflete nas outras de graça, porque
+ * todas leem a mesma base. Não existe cascata para manter em sincronia.
+ */
+function projetar(p, cols) {
+  const base = p.wBase || p.w;
+  const xbase = p.xBase != null ? p.xBase : p.x;
+  const w = Math.min(base, cols);
+  return { ...p, w, x: Math.max(0, Math.min(xbase, cols - w)) };
+}
+
+/** Todas as peças projetadas numa grade, já com a colisão resolvida. */
+function projetarTodas(lista, cols) {
+  return resolver(lista.map(p => projetar(p, cols)), null);
+}
+
 function sobreposicoes(lista) {
   const out = [];
   for (let i = 0; i < lista.length; i++) {
@@ -1395,6 +1431,10 @@ class Component extends DCLogic {
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
+      // Qual das telas está recebendo a interação no modo "Todas". A conta
+      // ponteiro→célula depende da grade DELA, porque cada uma tem uma
+      // contagem de colunas diferente.
+      telaAtiva: null,
       // Sobreposição pendente de decisão. O layout só sobrepõe se o usuário
       // mandar: `resolver` empurra o que dá, e o que não couber vira pergunta.
       conflito: null,
@@ -1478,7 +1518,10 @@ class Component extends DCLogic {
   }
 
   onGridMouseDown = (e) => {
-    if (this.state.preview || e.target !== this.gridEl) return;
+    // Vale para a grade de qualquer tela: no modo "Todas" o laço tem de poder
+    // nascer na tela em que a pessoa clicou, não só na primeira.
+    const grades = Object.values(this.gridEls || {}).concat(this.gridEl ? [this.gridEl] : []);
+    if (this.state.preview || !grades.includes(e.target)) return;
     const startX = e.clientX, startY = e.clientY;
     this.setState({ rubberBand: { x1: startX, y1: startY, x2: startX, y2: startY } });
     const mover = (ev) => this.setState({ rubberBand: { x1: startX, y1: startY, x2: ev.clientX, y2: ev.clientY } });
@@ -1600,6 +1643,9 @@ class Component extends DCLogic {
   }
 
   cols() {
+    // No modo "Todas" cada frame usa a própria contagem; este valor é só a
+    // referência de base para o que ainda pergunta "quantas colunas agora?".
+    if (this.state.largura === 'todas') return 12;
     if (this.state.largura === 'responsivo') {
       const { margem, gutter } = this.state;
       const refColW = (1440 - margem * 2 - 11 * gutter) / 12;
@@ -1611,11 +1657,14 @@ class Component extends DCLogic {
 
   iniciarResize(e, id, modo) {
     e.preventDefault(); e.stopPropagation();
-    if (!this.gridEl) return;
+    // A grade da TELA em que a alça foi puxada. No modo "Todas" usar a grade
+    // corrente faria a conta pixel→coluna sair da tela errada em quatro das cinco.
+    const { el: grade, cols } = this.gradeAtiva();
+    if (!grade) return;
     this.snapshot();
     this.setState({ resizeInfo: { id } });
-    const r = this.gridEl.getBoundingClientRect();
-    const cols = this.cols(), mg = this.state.margem, gutter = this.state.gutter;
+    const r = grade.getBoundingClientRect();
+    const mg = this.state.margem, gutter = this.state.gutter;
     const cw = (r.width - mg * 2) / cols, ch = (r.height - mg * 2) / ROWS;
     const p0 = this.state.pecas.find(p => p.id === id);
     if (!p0) return;
@@ -1651,7 +1700,7 @@ class Component extends DCLogic {
     const soltar = () => {
       document.removeEventListener('pointermove', mover);
       document.removeEventListener('pointerup', soltar);
-      const colsAtual = this.cols();
+      const colsAtual = this.gradeAtiva().cols;
       // Guardado ANTES de calcular o resultado: se a nova medida sobrepuser
       // alguém e o usuário recusar, é para cá que o layout volta.
       const antesDoResize = this.state.pecas.map(x => ({ ...x }));
@@ -1685,10 +1734,24 @@ class Component extends DCLogic {
     this._t = setTimeout(() => this.setState({ toast: null }), 2400);
   }
 
+  /**
+   * Grade e colunas da tela sob o ponteiro. No modo "Todas" há cinco grades na
+   * tela e cada uma tem a sua contagem — usar a do viewport "corrente" faria a
+   * peça cair na coluna errada em quatro delas.
+   */
+  gradeAtiva() {
+    const s = this.state;
+    if (s.largura !== 'todas') return { el: this.gridEl, cols: this.cols() };
+    const w = s.telaAtiva || BREAKPOINTS.slice().sort((a, b) => b.w - a.w)[0].w;
+    const bp = BREAKPOINTS.find(b => b.w === w);
+    return { el: (this.gridEls || {})[w] || this.gridEl, cols: bp ? bp.cols : 12 };
+  }
+
   celula(e) {
-    if (!this.gridEl) return { x: 0, y: 0 };
-    const r = this.gridEl.getBoundingClientRect();
-    const m = this.state.margem, cols = this.cols();
+    const { el: grade, cols } = this.gradeAtiva();
+    if (!grade) return { x: 0, y: 0 };
+    const r = grade.getBoundingClientRect();
+    const m = this.state.margem;
     const cw = (r.width - m * 2) / cols, ch = (r.height - m * 2) / ROWS;
     const x = Math.floor((e.clientX - r.left - m) / cw);
     const y = Math.floor((e.clientY - r.top - m) / ch);
@@ -1696,8 +1759,9 @@ class Component extends DCLogic {
   }
 
   pixelLivre(e, celX, celY) {
-    if (!this.gridEl) return { fx: 0, fy: 0 };
-    const r = this.gridEl.getBoundingClientRect();
+    const grade = this.gradeAtiva().el;
+    if (!grade) return { fx: 0, fy: 0 };
+    const r = grade.getBoundingClientRect();
     const m = this.state.margem, cols = this.cols();
     const cw = (r.width - m * 2) / cols, ch = (r.height - m * 2) / ROWS;
     const relX = e.clientX - r.left - m, relY = e.clientY - r.top - m;
@@ -1945,7 +2009,9 @@ class Component extends DCLogic {
 
   setGeo(id, key, delta, min, max) {
     this.snapshot();
-    const cols = this.cols();
+    // A base é gravada com as colunas da tela que está sendo editada — é isso
+    // que faz "editei no 390" valer como base para as outras quatro.
+    const cols = this.gradeAtiva().cols;
     const antes = this.state.pecas.map(x => ({ ...x }));
     const novas = resolver(this.state.pecas.map(p => {
       if (p.id !== id) return p;
@@ -2110,25 +2176,22 @@ class Component extends DCLogic {
   }
 
   trocarBreakpoint(bp) {
-    this.setState(st => ({
-      largura: bp.w, altura: bp.h,
-      pecas: resolver(st.pecas.map(p => {
-        const base = p.wBase || p.w, xbase = p.xBase != null ? p.xBase : p.x, colsBase = p.colsBase || bp.cols;
-        if (bp.cols >= colsBase) return { ...p, w: base, x: Math.min(xbase, bp.cols - base) };
-        const w = Math.min(base, bp.cols);
-        return { ...p, w, x: Math.min(xbase, bp.cols - w) };
-      }), null)
-    }));
+    // Mesma conta de `projetar` — antes duplicada aqui e no responsivo.
+    this.setState(st => ({ largura: bp.w, altura: bp.h, pecas: projetarTodas(st.pecas, bp.cols) }));
   }
 
   trocarResponsivo() {
-    this.setState(st => ({
-      largura: 'responsivo',
-      pecas: resolver(st.pecas.map(p => {
-        const base = p.wBase || p.w, xbase = p.xBase != null ? p.xBase : p.x;
-        return { ...p, w: Math.min(base, 12), x: Math.min(xbase, 12 - Math.min(base, 12)) };
-      }), null)
-    }));
+    this.setState(st => ({ largura: 'responsivo', pecas: projetarTodas(st.pecas, 12) }));
+  }
+
+  /**
+   * Modo TODAS — as cinco telas lado a lado, do 1440 ao 390.
+   * O layout não muda ao entrar: cada frame é só uma leitura diferente do
+   * mesmo layout. Editar em qualquer um deles regrava a base, e os outros
+   * quatro reprojetam na hora.
+   */
+  verTodasAsTelas() {
+    this.setState({ largura: 'todas', altura: 900 });
   }
 
   reordenar(id, dir) {
@@ -2264,8 +2327,16 @@ class Component extends DCLogic {
     const dispo = Math.max(60, editando ? larguraJanela - 64 - (s.painelAberto ? 280 : 34) - (s.propsAberto ? 328 : 34) - 56 : larguraJanela - 80);
     const dispoY = Math.max(60, editando ? alturaJanela - 60 - 44 - 90 : alturaJanela - 60 - 40);
     const responsivo = s.largura === 'responsivo';
-    const larguraAlvo = responsivo ? Math.min(dispo, 1920) : s.largura;
-    const ajuste = responsivo ? 1 : Math.min(1, Math.round(Math.min(dispo / larguraAlvo, dispoY / s.altura) * 100) / 100);
+    const modoTodas = s.largura === 'todas';
+    // As cinco telas, do maior para o menor. A soma das larguras mais os vãos
+    // é o que precisa caber na área disponível para o zoom "Ajustar" enquadrar.
+    const TELAS = BREAKPOINTS.slice().sort((a, b) => b.w - a.w);
+    const VAO_TELAS = 64;
+    const larguraTodas = TELAS.reduce((acc, t) => acc + t.w, 0) + VAO_TELAS * (TELAS.length - 1);
+    const alturaTodas = Math.max(...TELAS.map(t => t.h));
+    const larguraAlvo = responsivo ? Math.min(dispo, 1920) : (modoTodas ? larguraTodas : s.largura);
+    const alturaAlvo = modoTodas ? alturaTodas : s.altura;
+    const ajuste = responsivo ? 1 : Math.min(1, Math.round(Math.min(dispo / larguraAlvo, dispoY / alturaAlvo) * 100) / 100);
     this._ajusteAtual = ajuste;
     const zoom = responsivo ? 1 : (s.zoom === 'fit' ? ajuste : s.zoom);
     const vp = { w: larguraAlvo, z: zoom };
@@ -2273,6 +2344,8 @@ class Component extends DCLogic {
     const { gutter, margem, raio, gapLinha } = s;
     ROWS = s.linhasGrade;
     const rowH = Math.max(4, Math.round((s.altura - margem * 2 - (ROWS - 1) * gapLinha) / ROWS));
+    /** Altura de linha para uma tela qualquer — cada breakpoint tem a sua. */
+    const rowHDe = (alturaTela) => Math.max(4, Math.round((alturaTela - margem * 2 - (ROWS - 1) * gapLinha) / ROWS));
     const sel = s.pecas.find(p => p.id === s.selectedId) || null;
 
     const leituraStyle = { fontSize: 10.5, fontWeight: 600, letterSpacing: '.06em', fontVariantNumeric: 'tabular-nums', color: UI, padding: '4px 9px', borderRadius: 7, flexShrink: 0, whiteSpace: 'nowrap', background: SUNK, boxShadow: 'inset 2px 2px 5px rgba(0,0,0,.6)' };
@@ -2288,6 +2361,11 @@ class Component extends DCLogic {
       style: { ...seg(s.largura === bp.w), height: 28, padding: '0 11px', fontSize: 11, fontVariantNumeric: 'tabular-nums' },
       onPick: () => this.trocarBreakpoint(bp)
     })).concat([{
+      key: 'todas', label: 'Todas',
+      title: 'As cinco telas lado a lado — edite em qualquer uma e veja as outras acompanharem',
+      style: { ...seg(s.largura === 'todas'), height: 28, padding: '0 11px', fontSize: 11 },
+      onPick: () => this.verTodasAsTelas()
+    }, {
       key: 'responsivo', label: 'Responsivo',
       title: comboLabel(s.atalhosCustom.bpResponsivo || ATALHOS_DEFAULT.bpResponsivo, s.teclado === 'mac'),
       style: { ...seg(s.largura === 'responsivo'), height: 28, padding: '0 11px', fontSize: 11 },
@@ -2425,7 +2503,14 @@ class Component extends DCLogic {
 
     const colW = (vp.w - margem * 2 - (cols - 1) * gutter) / cols;
 
-    const pecas = s.pecas.map((m, indice) => {
+    /**
+     * Mapeia as peças para UMA grade. Recebe as colunas porque o modo "Todas"
+     * desenha cinco telas ao mesmo tempo, cada uma com a sua contagem.
+     * `projetar` devolve a peça inteira com w/x recalculados, então todo o
+     * corpo abaixo (boxW, gridColumn, arrasto) já trabalha na grade certa.
+     */
+    const mapearPecas = (cols, colW, rowH) => s.pecas.map((mOriginal, indice) => {
+      const m = projetar(mOriginal, cols);
       const p = m.p;
       const boxW = m.w * colW + (m.w - 1) * gutter;
       const boxH = m.h * rowH + (m.h - 1) * gapLinha;
@@ -2522,7 +2607,7 @@ class Component extends DCLogic {
           const c = this.celula(e);
           const grupo = this.selecaoTotal();
           const outros = grupo.includes(m.id) && grupo.length > 1
-            ? grupo.filter(gid => gid !== m.id).map(gid => { const o = s.pecas.find(p => p.id === gid); return o ? { id: gid, dx: o.x - m.x, dy: o.y - m.y } : null; }).filter(Boolean)
+            ? grupo.filter(gid => gid !== m.id).map(gid => { const bruto = s.pecas.find(p => p.id === gid); const o = bruto && projetar(bruto, cols); return o ? { id: gid, dx: o.x - m.x, dy: o.y - m.y } : null; }).filter(Boolean)
             : [];
           this.setState({ drag: { kind: 'move', id: m.id, nome: m.nome, w: m.w, h: m.h, gx: c.x - m.x, gy: c.y - m.y, sx0: e.clientX, sy0: e.clientY, freeX0: m.freeX || 0, freeY0: m.freeY || 0, outros } });
         }
@@ -2855,6 +2940,67 @@ class Component extends DCLogic {
       return base;
     });
 
+    // Grade corrente. No modo "Todas" isto vira uma chamada por tela.
+    const pecas = mapearPecas(cols, colW, rowH);
+
+    /*
+     * FRAMES — o canvas passa a desenhar sempre uma LISTA de telas.
+     * Nos modos de sempre a lista tem um item, e nada muda. No modo "Todas"
+     * ela tem cinco, do 1440 ao 390. Uniformizar assim foi de propósito: o
+     * caminho antigo e o novo passam pelo mesmo código, então o que já
+     * funcionava não depende de eu lembrar de atualizar dois lugares.
+     */
+    const telasVisiveis = modoTodas
+      ? TELAS.map(t => ({ w: t.w, h: t.h, cols: t.cols, rotulo: t.w + ' × ' + t.h + ' · ' + t.cols + ' col' }))
+      : [{ w: larguraAlvo, h: s.altura, cols, rotulo: null }];
+
+    const frames = telasVisiveis.map((t, iTela) => {
+      const colWTela = (t.w - margem * 2 - (t.cols - 1) * gutter) / t.cols;
+      const rowHTela = rowHDe(t.h);
+      // Só a tela que está recebendo a interação desenha fantasma e laço; as
+      // outras ficariam com um retângulo solto sem relação com o ponteiro.
+      const ativa = !modoTodas || s.telaAtiva === t.w || (s.telaAtiva == null && iTela === 0);
+      return {
+        key: t.w,
+        rotulo: t.rotulo,
+        temRotulo: !!t.rotulo,
+        rotuloStyle: { display: 'block', marginBottom: 8, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: ativa ? cor : 'rgb(103,108,119)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' },
+        colunaStyle: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flexShrink: 0 },
+        frameStyle: {
+          position: 'relative', width: t.w, height: t.h, overflow: 'hidden',
+          background: (s.fundoCanvasTipo === 'cor' && s.fundoCorAlvo === 'dentro') ? s.fundoCanvasCor : 'rgb(26,28,33)',
+          borderRadius: 20, boxSizing: 'border-box', flexShrink: 0,
+          boxShadow: '10px 10px 30px rgba(0,0,0,.55), -6px -6px 20px rgba(255,255,255,.022)',
+          outline: modoTodas && ativa ? '2px solid ' + cor : 'none', outlineOffset: 6,
+          '--mock-primary': cor
+        },
+        gridStyle: {
+          position: 'relative', display: 'grid',
+          gridTemplateColumns: 'repeat(' + t.cols + ', 1fr)',
+          gridTemplateRows: 'repeat(' + ROWS + ', ' + rowHTela + 'px)',
+          gridAutoRows: rowHTela + 'px', columnGap: gutter, rowGap: gapLinha, padding: margem,
+          height: '100%', boxSizing: 'border-box', overflow: 'hidden'
+        },
+        gridRef: (el) => { if (el) { this.gridEls = this.gridEls || {}; this.gridEls[t.w] = el; if (!modoTodas || iTela === 0) this.gridEl = el; } },
+        // Interagir numa tela torna ela a ativa: é dela que sai a conta
+        // ponteiro→célula, e é a contagem de colunas dela que vira a base.
+        onGridEnter: () => { if (modoTodas && s.telaAtiva !== t.w) this.setState({ telaAtiva: t.w }); },
+        colunasGuia: Array.from({ length: t.cols }, (_, i) => ({
+          key: i,
+          style: { gridColumn: (i + 1) + ' / span 1', gridRow: '1 / -1', background: 'rgba(128,128,128,.05)', outline: '1px solid rgba(128,128,128,.10)', pointerEvents: 'none', zIndex: 0 }
+        })),
+        mostrarGuias: s.guias && editando,
+        mostrarMalhaOverlay: s.malha && editando,
+        malhaOverlayStyle: {
+          position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', mixBlendMode: 'difference',
+          backgroundImage: 'linear-gradient(rgba(128,128,128,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(128,128,128,.16) 1px, transparent 1px)',
+          backgroundSize: '8px 8px', backgroundPosition: margem + 'px ' + margem + 'px'
+        },
+        ativa,
+        pecas: modoTodas ? mapearPecas(t.cols, colWTela, rowHTela) : pecas
+      };
+    });
+
     const tabs = [{ key: 'conteudo', label: 'Conteúdo' }, { key: 'estilo', label: 'Estilo' }, { key: 'layout', label: 'Autolayout' }]
       .map(t => ({
         key: t.key, label: t.label, onPick: () => this.setState({ tab: t.key }),
@@ -3110,7 +3256,6 @@ class Component extends DCLogic {
         this.flash('Imagem de fundo carregada');
       },
       regua: Array.from({ length: cols }, (_, i) => ({ key: i, n: i + 1 })),
-      frameStyle: { position: 'relative', width: vp.w, height: s.altura, overflow: 'hidden', zoom: String(vp.z), background: (s.fundoCanvasTipo === 'cor' && s.fundoCorAlvo === 'dentro') ? s.fundoCanvasCor : 'rgb(26,28,33)', borderRadius: 20, boxSizing: 'border-box', flexShrink: 0, boxShadow: '10px 10px 30px rgba(0,0,0,.55), -6px -6px 20px rgba(255,255,255,.022)', '--mock-primary': cor },
       gridStyle: {
         position: 'relative', display: 'grid',
         gridTemplateColumns: 'repeat(' + cols + ', 1fr)',
@@ -3143,6 +3288,13 @@ class Component extends DCLogic {
       ghostLabelStyle: { fontSize: 12, fontWeight: 700, color: cor, letterSpacing: '.03em', textShadow: '0 0 14px ' + cor + '88' },
       ghostStyle: s.ghost ? { gridColumn: (s.ghost.x + 1) + ' / span ' + s.ghost.w, gridRow: (s.ghost.y + 1) + ' / span ' + s.ghost.h, borderRadius: raio, background: SUNK, boxShadow: SH_IN + ', 0 0 0 2px ' + cor + '99, 0 0 24px ' + cor + '44', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 } : {},
       pecas,
+      frames,
+      modoTodas,
+      // A pista que enfileira as telas. Fora do modo "Todas" ela é um contêiner
+      // neutro de um item só, então o layout de sempre não muda.
+      pistaFramesStyle: modoTodas
+        ? { display: 'flex', alignItems: 'flex-start', gap: VAO_TELAS, zoom: String(zoom) }
+        : { display: 'block', zoom: String(zoom) },
       vazio: s.pecas.length === 0,
       vazioStyle: { gridColumn: '1 / -1', gridRow: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' },
       legendaGrade: (responsivo ? 'RESPONSIVO' : s.largura + ' × ' + s.altura) + ' · ' + cols + ' COLUNAS × ' + ROWS + ' LINHAS · GUTTER ' + gutter + ' · MARGEM ' + margem + ' · MALHA ' + (s.malha ? '8PX' : 'OFF') + ' · ÍMÃ ' + (s.ima ? 'ON' : 'OFF'),
