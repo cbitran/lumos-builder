@@ -992,7 +992,7 @@
               </div>
             </sc-if>
           </sc-if>
-          <sc-if value="{{ mostrarHeranca }}" hint-placeholder-val="{{ false }}">
+          <sc-if value="{{ heranca.mostrar }}" hint-placeholder-val="{{ false }}">
             <div style="{{ heranca.style }}">
               <sc-if value="{{ heranca.ajustada }}" hint-placeholder-val="{{ false }}">
                 <span>{{ heranca.textoAjustada }}</span>
@@ -3535,8 +3535,13 @@ class Component extends DCLogic {
       ghostStyle: s.ghost ? { gridColumn: (s.ghost.x + 1) + ' / span ' + s.ghost.w, gridRow: (s.ghost.y + 1) + ' / span ' + s.ghost.h, borderRadius: raio, background: SUNK, boxShadow: SH_IN + ', 0 0 0 2px ' + cor + '99, 0 0 24px ' + cor + '44', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 } : {},
       pecas,
       frames,
+      /*
+       * A condição no template é `{{ heranca.mostrar }}`, com acesso pontuado.
+       * Um booleano solto no topo (`mostrarHeranca`) NÃO resolvia — o bloco
+       * simplesmente não renderizava, mesmo com renderVals() devolvendo true.
+       * Não descobri a causa no runtime do Claude Design; registro o fato.
+       */
       heranca,
-      mostrarHeranca: heranca.mostrar,
       modoTodas,
       // A pista que enfileira as telas. Fora do modo "Todas" ela é um contêiner
       // neutro de um item só, então o layout de sempre não muda.
