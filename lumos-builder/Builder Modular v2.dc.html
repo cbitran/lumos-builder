@@ -410,10 +410,16 @@
         <sc-for list="{{ frames }}" as="f" hint-placeholder-count="1">
         <div style="{{ f.colunaStyle }}">
         <sc-if value="{{ f.temRotulo }}" hint-placeholder-val="{{ false }}">
-          <span style="{{ f.rotuloStyle }}">{{ f.rotulo }}</span>
+          <span style="{{ f.rotuloStyle }}">
+            {{ f.rotulo }}
+            <span onClick="{{ f.onDefinirPrincipal }}" title="A tela principal dita o layout das outras. As outras só mudam onde você as ajustou." style="{{ f.seloStyle }}">{{ f.selo }}</span>
+            <sc-if value="{{ f.temAjustes }}" hint-placeholder-val="{{ false }}">
+              <span style="{{ f.ajustesStyle }}">{{ f.ajustesRotulo }}</span>
+            </sc-if>
+          </span>
         </sc-if>
         <div style="{{ f.frameStyle }}">
-          <div ref="{{ f.gridRef }}" onMouseEnter="{{ f.onGridEnter }}" onDragEnter="{{ f.onGridEnter }}" onDragOver="{{ onGridOver }}" onDragLeave="{{ onGridLeave }}" onDrop="{{ onGridDrop }}" onClick="{{ onCanvasClick }}" onMouseDown="{{ onGridMouseDown }}" style="{{ f.gridStyle }}">
+          <div ref="{{ f.gridRef }}" onMouseEnter="{{ f.onGridEnter }}" onMouseOver="{{ f.onGridEnter }}" onDragEnter="{{ f.onGridEnter }}" onDragOverCapture="{{ f.onGridEnter }}" onDragOver="{{ onGridOver }}" onDragLeave="{{ onGridLeave }}" onDrop="{{ onGridDrop }}" onClick="{{ onCanvasClick }}" onMouseDown="{{ onGridMouseDown }}" style="{{ f.gridStyle }}">
             <sc-if value="{{ f.mostrarMalhaOverlay }}" hint-placeholder-val="{{ false }}">
               <div style="{{ f.malhaOverlayStyle }}"></div>
             </sc-if>
@@ -750,6 +756,10 @@
                   </sc-if>
                 </sc-if>
 
+                <sc-if value="{{ m.marcaAjuste }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ m.marcaAjusteStyle }}"></div>
+                </sc-if>
+
                 <sc-if value="{{ m.showChrome }}" hint-placeholder-val="{{ false }}">
                   <div style="{{ m.ringStyle }}"></div>
                   <sc-for list="{{ m.handles }}" as="hd" hint-placeholder-count="0">
@@ -982,6 +992,18 @@
               </div>
             </sc-if>
           </sc-if>
+          <sc-if value="{{ mostrarHeranca }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ heranca.style }}">
+              <sc-if value="{{ heranca.ajustada }}" hint-placeholder-val="{{ false }}">
+                <span>{{ heranca.textoAjustada }}</span>
+                <span onClick="{{ heranca.onRestaurar }}" style="{{ heranca.restaurarStyle }}">voltar a herdar</span>
+              </sc-if>
+              <sc-if value="{{ heranca.herdada }}" hint-placeholder-val="{{ true }}">
+                <span>{{ heranca.textoHerdada }}</span>
+              </sc-if>
+            </div>
+          </sc-if>
+
           <div style="display:flex;flex-direction:column;gap:11px;padding:14px;border-radius:14px;background:rgb(26,28,32);box-shadow:inset 3px 3px 9px rgba(0,0,0,.55),inset -2px -2px 7px rgba(255,255,255,.028)">
               <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Posição na grade</span>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
@@ -1322,6 +1344,48 @@ function colide(a, b) {
  * Pares que REALMENTE se sobrepõem. A seção que contém a peça não conta —
  * container abrigando conteúdo é o comportamento desejado, não colisão.
  */
+/** Telas do maior para o menor. */
+const TELAS_DESC = BREAKPOINTS.slice().sort((a, b) => b.w - a.w);
+/** Tela principal padrão. É trocável pelo usuário — ver `telaPrimaria` no estado. */
+const TELA_PRIMARIA_PADRAO = TELAS_DESC[0].w;
+
+/**
+ * GEOMETRIA NUMA TELA — modelo MATRIZ.
+ *
+ * Uma tela é a principal (a matriz). O que se faz nela vale para todas.
+ * O que se faz em qualquer outra vale SÓ naquela e nunca sobe para a matriz
+ * nem escorre para as vizinhas.
+ *
+ * É o que o Celio descreveu: "tudo que foi feito nele vai refletir nos outros,
+ * mas nem sempre que for refletir nos outros vai refletir nele — vai refletir
+ * só naquele que eu tô mexendo."
+ *
+ * Difere do Framer num ponto de propósito: no Framer o ajuste do tablet
+ * escorre para o celular. Aqui não escorre — cada tela secundária é
+ * independente da outra. Foi a regra pedida, e é a mais previsível de explicar.
+ *
+ * Override é POR PROPRIEDADE (x, y, w, h): ajustar só a largura no mobile não
+ * congela a altura junto.
+ */
+function geometriaEm(p, larguraTela, primaria) {
+  const g = {
+    x: p.xBase != null ? p.xBase : p.x,
+    y: p.yBase != null ? p.yBase : p.y,
+    w: p.wBase || p.w,
+    h: p.hBase || p.h
+  };
+  if (larguraTela == null || larguraTela === primaria) return g;
+  const o = (p.porTela || {})[larguraTela];
+  if (o) for (const k of ['x', 'y', 'w', 'h']) if (o[k] != null) g[k] = o[k];
+  return g;
+}
+
+/** Esta peça tem ajuste próprio nesta tela? (para marcar na interface) */
+function temAjusteProprio(p, larguraTela) {
+  const o = (p.porTela || {})[larguraTela];
+  return !!o && ['x', 'y', 'w', 'h'].some(k => o[k] != null);
+}
+
 /**
  * PROJEÇÃO — onde a peça cai numa grade de N colunas.
  *
@@ -1333,16 +1397,15 @@ function colide(a, b) {
  * Consequência direta: mexer numa tela reflete nas outras de graça, porque
  * todas leem a mesma base. Não existe cascata para manter em sincronia.
  */
-function projetar(p, cols) {
-  const base = p.wBase || p.w;
-  const xbase = p.xBase != null ? p.xBase : p.x;
-  const w = Math.min(base, cols);
-  return { ...p, w, x: Math.max(0, Math.min(xbase, cols - w)) };
+function projetar(p, cols, larguraTela, primaria) {
+  const g = geometriaEm(p, larguraTela, primaria);
+  const w = Math.min(g.w, cols);
+  return { ...p, w, h: g.h, y: g.y, x: Math.max(0, Math.min(g.x, cols - w)) };
 }
 
 /** Todas as peças projetadas numa grade, já com a colisão resolvida. */
-function projetarTodas(lista, cols) {
-  return resolver(lista.map(p => projetar(p, cols)), null);
+function projetarTodas(lista, cols, larguraTela, primaria) {
+  return resolver(lista.map(p => projetar(p, cols, larguraTela, primaria)), null);
 }
 
 function sobreposicoes(lista) {
@@ -1435,6 +1498,9 @@ class Component extends DCLogic {
       // ponteiro→célula depende da grade DELA, porque cada uma tem uma
       // contagem de colunas diferente.
       telaAtiva: null,
+      // A tela MATRIZ. O que se faz nela reflete em todas; o que se faz nas
+      // outras fica só nelas. Trocável pelo usuário no modo "Todas".
+      telaPrimaria: TELA_PRIMARIA_PADRAO,
       // Sobreposição pendente de decisão. O layout só sobrepõe se o usuário
       // mandar: `resolver` empurra o que dá, e o que não couber vira pergunta.
       conflito: null,
@@ -1496,6 +1562,87 @@ class Component extends DCLogic {
     }
     this.setState({ conflito: null });
   };
+
+  /**
+   * Em qual tela a edição está acontecendo.
+   * No modo "Todas" é a tela sob o ponteiro; nos modos de uma tela só, ela mesma.
+   * O "Responsivo" conta como primário: ele é uma leitura fluida do 1440, não
+   * um breakpoint próprio onde faria sentido fixar um ajuste.
+   */
+  telaEditada() {
+    const s = this.state;
+    if (s.largura === 'todas') return s.telaAtiva || s.telaPrimaria;
+    // "Responsivo" é uma leitura fluida da matriz, não um breakpoint próprio.
+    if (s.largura === 'responsivo') return s.telaPrimaria;
+    return s.largura;
+  }
+
+  /**
+   * GRAVA GEOMETRIA — no primário vira base (desce para todas); nas outras
+   * telas vira ajuste só daquela, e não sobe. É a regra do Framer.
+   *
+   * `...novo` também atualiza x/y/w/h correntes, senão a tela que está sendo
+   * editada não mostraria a mudança até a próxima troca de breakpoint.
+   */
+  aplicarGeometria(peca, novo, telaForcada) {
+    const tela = telaForcada || this.telaEditada();
+    if (tela === this.state.telaPrimaria) {
+      const base = { ...peca, ...novo };
+      return {
+        ...base,
+        xBase: base.x, yBase: base.y, wBase: base.w, hBase: base.h
+      };
+    }
+    const anterior = (peca.porTela || {})[tela] || {};
+    const ajuste = { ...anterior };
+    for (const k of ['x', 'y', 'w', 'h']) if (novo[k] != null) ajuste[k] = novo[k];
+    /*
+     * NÃO toca em x/y/w/h vivos.
+     *
+     * Eles espelham a MATRIZ. Deixá-los receber o valor de uma tela secundária
+     * fazia o ajuste do mobile contaminar a próxima edição no desktop: a peça
+     * ficava com w=2 e o "+" no desktop partia de 2 em vez de 5. Quem desenha
+     * cada tela é `geometriaEm`, que lê base + ajuste — os campos vivos servem
+     * só à colisão e ao arrasto, que acontecem sobre a matriz.
+     */
+    return { ...peca, porTela: { ...(peca.porTela || {}), [tela]: ajuste } };
+  }
+
+  /**
+   * Resolve colisão e REGISTRA o que a colisão mexeu.
+   * Empurrar um vizinho é mudança de geometria como qualquer outra: se
+   * aconteceu no mobile, tem de ficar no mobile. Sem isto, a colisão vazaria
+   * para o desktop pelas costas do usuário.
+   */
+  resolverGravando(lista, movedId, direcao) {
+    const antes = new Map(lista.map(p => [p.id, { x: p.x, y: p.y, w: p.w, h: p.h }]));
+    const depois = resolver(lista, movedId, direcao);
+    return depois.map(p => {
+      const a = antes.get(p.id);
+      if (!a) return p;
+      const mudou = {};
+      for (const k of ['x', 'y', 'w', 'h']) if (a[k] !== p[k]) mudou[k] = p[k];
+      return Object.keys(mudou).length ? this.aplicarGeometria(p, mudou) : p;
+    });
+  }
+
+  /** Apaga o ajuste desta peça nesta tela — ela volta a herdar. */
+  restaurarHeranca(id, tela) {
+    const alvo = tela || this.telaEditada();
+    if (alvo === this.state.telaPrimaria) return;
+    this.snapshot();
+    this.setState(st => ({
+      pecas: st.pecas.map(p => {
+        if (p.id !== id || !p.porTela || !p.porTela[alvo]) return p;
+        const porTela = { ...p.porTela };
+        delete porTela[alvo];
+        const g = geometriaEm({ ...p, porTela }, alvo, this.state.telaPrimaria);
+        return { ...p, porTela, x: g.x, y: g.y, w: g.w, h: g.h };
+      }),
+      dirty: true
+    }));
+    this.flash('Voltou a herdar do layout principal');
+  }
 
   /** Lê o estado vivo de uma peça, caindo no valor configurado quando ainda não houve interação. */
   rt(id, chave, padrao) {
@@ -1706,7 +1853,12 @@ class Component extends DCLogic {
       const antesDoResize = this.state.pecas.map(x => ({ ...x }));
       this.setState(st => {
         if (!ima) return { resizeInfo: null };
-        let pecas = resolver(st.pecas, id).map(p => p.id === id ? { ...p, wBase: p.w, xBase: p.x, colsBase: colsAtual } : p);
+        // A peça já foi mexida durante o arrasto; aqui a mudança é REGISTRADA
+        // na tela certa — base se for a principal, ajuste próprio se não for.
+        let pecas = this.resolverGravando(
+          st.pecas.map(p => p.id === id ? this.aplicarGeometria(p, { x: p.x, y: p.y, w: p.w, h: p.h }) : p),
+          id
+        );
         if (modo.indexOf('e') >= 0 || modo.indexOf('w') >= 0) pecas = this.reajustarLinha(pecas, id, colsAtual);
         // Redimensionar também não pode sobrepor em silêncio. A conferência sai
         // do setState porque `aplicarLayout` pode precisar ABRIR uma pergunta em
@@ -1796,9 +1948,12 @@ class Component extends DCLogic {
     this.snapshot();
     if (d.kind === 'novo') {
       const nova = { id: 'c' + (proximoUid()), tipo: d.tipo, nome: d.nome, icone: d.icone, visivel: true, x: g.x, y: g.y, w: g.w, h: g.h, wBase: g.w, xBase: g.x, colsBase: this.cols(), p: { ...DEFAULTS[d.tipo], ...(d.props || {}), visivelPara: 'Todos', ocultarMobile: false } };
-      const novas = resolver(this.state.pecas.concat([nova]), nova.id, g.dirCima ? 'cima' : 'baixo');
+      // Peça nova nasce na MATRIZ, mesmo que solta numa tela secundária: criar
+      // é o que se propaga para todas. Só o AJUSTE é que fica local.
+      const nascida = this.aplicarGeometria(nova, { x: nova.x, y: nova.y, w: nova.w, h: nova.h }, this.state.telaPrimaria);
+      const novas = this.resolverGravando(this.state.pecas.concat([nascida]), nascida.id, g.dirCima ? 'cima' : 'baixo');
       this.setState({ drag: null, ghost: null });
-      if (this.aplicarLayout(novas, 'Soltar ' + d.nome, { selectedId: nova.id })) {
+      if (this.aplicarLayout(novas, 'Soltar ' + d.nome, { selectedId: nascida.id })) {
         this.flash(d.nome + ' · coluna ' + (g.x + 1) + ', linha ' + (g.y + 1));
       }
     } else {
@@ -1819,7 +1974,10 @@ class Component extends DCLogic {
           const cols = this.cols();
           return { ...p, x: Math.max(0, Math.min(cols - p.w, g.x + outro.dx)), y: Math.max(0, Math.min(ROWS - p.h, g.y + outro.dy)) };
         });
-        pecas = ima ? resolver(pecas, d.id, g.dirCima ? 'cima' : 'baixo') : pecas;
+        pecas = pecas.map(p => (p.id === d.id || (d.outros || []).some(o => o.id === p.id))
+          ? this.aplicarGeometria(p, { x: p.x, y: p.y })
+          : p);
+        pecas = ima ? this.resolverGravando(pecas, d.id, g.dirCima ? 'cima' : 'baixo') : pecas;
         // A conferência acontece fora do setState: `aplicarLayout` pode precisar
         // ABRIR uma pergunta em vez de gravar, e um setState não pode decidir
         // isso de dentro de si mesmo.
@@ -2013,15 +2171,25 @@ class Component extends DCLogic {
     // que faz "editei no 390" valer como base para as outras quatro.
     const cols = this.gradeAtiva().cols;
     const antes = this.state.pecas.map(x => ({ ...x }));
-    const novas = resolver(this.state.pecas.map(p => {
+    const tela = this.telaEditada();
+    const naMatriz = tela === this.state.telaPrimaria;
+    const mexidas = this.state.pecas.map(p => {
       if (p.id !== id) return p;
-      const v = Math.max(min, Math.min(max, p[key] + delta));
-      const next = { ...p, [key]: v };
-      if (key === 'w') next.x = Math.min(p.x, cols - v);
-      if (key === 'h') next.y = Math.min(p.y, ROWS - v);
-      next.wBase = next.w; next.xBase = next.x; next.colsBase = cols;
-      return next;
-    }), id, (key === 'x' || key === 'y') && delta < 0 ? 'cima' : 'baixo');
+      // Parte do valor QUE ESTA TELA mostra, não dos campos vivos: no modo
+      // "Todas" eles são da matriz, e somar o delta neles daria o número errado.
+      const gAtual = geometriaEm(p, tela, this.state.telaPrimaria);
+      const partida = key === 'w' ? Math.min(gAtual.w, cols) : gAtual[key];
+      const v = Math.max(min, Math.min(max, partida + delta));
+      const mudanca = { [key]: v };
+      if (key === 'w') mudanca.x = Math.min(gAtual.x, cols - v);
+      if (key === 'h') mudanca.y = Math.min(gAtual.y, ROWS - v);
+      return this.aplicarGeometria(p, mudanca);
+    });
+    // Colisão só na matriz: empurrar vizinhos usa os campos vivos, que fora da
+    // matriz não representam a tela sendo editada. Empurrar ali seria mentira.
+    const novas = naMatriz
+      ? this.resolverGravando(mexidas, id, (key === 'x' || key === 'y') && delta < 0 ? 'cima' : 'baixo')
+      : mexidas;
     // Os steppers do inspector mudam geometria como as alças mudam — então
     // passam pela mesma conferência. Sem isto, dava para sobrepor pelo painel
     // mesmo com o arrasto protegido.
@@ -2176,12 +2344,12 @@ class Component extends DCLogic {
   }
 
   trocarBreakpoint(bp) {
-    // Mesma conta de `projetar` — antes duplicada aqui e no responsivo.
-    this.setState(st => ({ largura: bp.w, altura: bp.h, pecas: projetarTodas(st.pecas, bp.cols) }));
+    // Resolve a cascata DAQUELA tela: base + os ajustes que descem até ela.
+    this.setState(st => ({ largura: bp.w, altura: bp.h, pecas: projetarTodas(st.pecas, bp.cols, bp.w, st.telaPrimaria) }));
   }
 
   trocarResponsivo() {
-    this.setState(st => ({ largura: 'responsivo', pecas: projetarTodas(st.pecas, 12) }));
+    this.setState(st => ({ largura: 'responsivo', pecas: projetarTodas(st.pecas, 12, st.telaPrimaria, st.telaPrimaria) }));
   }
 
   /**
@@ -2190,6 +2358,32 @@ class Component extends DCLogic {
    * mesmo layout. Editar em qualquer um deles regrava a base, e os outros
    * quatro reprojetam na hora.
    */
+  definirTelaPrincipal(w) {
+    /*
+     * Eleger uma tela como matriz adota a GEOMETRIA DELA como base.
+     *
+     * Só trocar de quem se herda, sem adotar, era enganoso: a pessoa declara
+     * "esta tela manda" e nada do que ela vê ali passa a mandar. Agora o que
+     * está na tela eleita vira a base de todas, e o ajuste próprio dela some
+     * — ela deixou de ser exceção, virou a regra.
+     *
+     * As outras telas guardam os ajustes que já tinham. Quem não tinha passa a
+     * herdar da nova matriz.
+     */
+    this.snapshot();
+    this.setState(st => {
+      if (st.telaPrimaria === w) return null;
+      const pecas = st.pecas.map(p => {
+        const g = geometriaEm(p, w, st.telaPrimaria);
+        const porTela = { ...(p.porTela || {}) };
+        delete porTela[w];
+        return { ...p, xBase: g.x, yBase: g.y, wBase: g.w, hBase: g.h, x: g.x, y: g.y, w: g.w, h: g.h, porTela };
+      });
+      return { telaPrimaria: w, pecas, dirty: true };
+    });
+    this.flash(w + ' agora é a tela principal — o layout dela passou a valer para as outras');
+  }
+
   verTodasAsTelas() {
     this.setState({ largura: 'todas', altura: 900 });
   }
@@ -2426,7 +2620,8 @@ class Component extends DCLogic {
           const maxY = st.pecas.reduce((acc, p) => Math.max(acc, p.y + p.h), 0);
           const pos = this.posicionar(0, maxY, w, i.h);
           const nova = { id, tipo: i.tipo, nome: i.nome, icone: i.icone, visivel: true, ...pos, wBase: pos.w, xBase: pos.x, colsBase: this.cols(), p: { ...DEFAULTS[i.tipo], ...(i.props || {}), visivelPara: 'Todos', ocultarMobile: false } };
-          const novas = resolver(st.pecas.concat([nova]), id);
+          const nascida = this.aplicarGeometria(nova, { x: nova.x, y: nova.y, w: nova.w, h: nova.h }, st.telaPrimaria);
+          const novas = this.resolverGravando(st.pecas.concat([nascida]), id);
           if (this.aplicarLayout(novas, 'Adicionar ' + i.nome, { selectedId: id })) {
             this.flash(i.nome + ' adicionado');
           }
@@ -2509,8 +2704,9 @@ class Component extends DCLogic {
      * `projetar` devolve a peça inteira com w/x recalculados, então todo o
      * corpo abaixo (boxW, gridColumn, arrasto) já trabalha na grade certa.
      */
-    const mapearPecas = (cols, colW, rowH) => s.pecas.map((mOriginal, indice) => {
-      const m = projetar(mOriginal, cols);
+    const mapearPecas = (cols, colW, rowH, larguraTela) => s.pecas.map((mOriginal, indice) => {
+      const m = projetar(mOriginal, cols, larguraTela, s.telaPrimaria);
+      const ajustadaAqui = larguraTela != null && larguraTela !== s.telaPrimaria && temAjusteProprio(mOriginal, larguraTela);
       const p = m.p;
       const boxW = m.w * colW + (m.w - 1) * gutter;
       const boxH = m.h * rowH + (m.h - 1) * gapLinha;
@@ -2544,6 +2740,10 @@ class Component extends DCLogic {
         isBreadcrumb: m.tipo === 'breadcrumb', isPagination: m.tipo === 'pagination', isSkeleton: m.tipo === 'skeleton',
         isKbd: m.tipo === 'kbd', isModal: m.tipo === 'modal',
         showChrome: selecionado, arrastavel: editando,
+        // Peça com ajuste próprio nesta tela ganha um traço na cor da marca —
+        // é o equivalente ao destaque de override do Framer.
+        marcaAjuste: ajustadaAqui,
+        marcaAjusteStyle: { position: 'absolute', left: 0, right: 0, bottom: -3, height: 2, borderRadius: 2, background: cor, pointerEvents: 'none', zIndex: 5 },
         wrapStyle: {
           position: 'relative', gridColumn: (m.x + 1) + ' / span ' + m.w, gridRow: (m.y + 1) + ' / span ' + m.h, minWidth: 0, minHeight: 0, cursor: editando ? 'move' : 'default',
           width: (!s.ima && m.freeW) ? 'calc(100% + ' + m.freeW + 'px)' : undefined,
@@ -2607,7 +2807,7 @@ class Component extends DCLogic {
           const c = this.celula(e);
           const grupo = this.selecaoTotal();
           const outros = grupo.includes(m.id) && grupo.length > 1
-            ? grupo.filter(gid => gid !== m.id).map(gid => { const bruto = s.pecas.find(p => p.id === gid); const o = bruto && projetar(bruto, cols); return o ? { id: gid, dx: o.x - m.x, dy: o.y - m.y } : null; }).filter(Boolean)
+            ? grupo.filter(gid => gid !== m.id).map(gid => { const bruto = s.pecas.find(p => p.id === gid); const o = bruto && projetar(bruto, cols, larguraTela, s.telaPrimaria); return o ? { id: gid, dx: o.x - m.x, dy: o.y - m.y } : null; }).filter(Boolean)
             : [];
           this.setState({ drag: { kind: 'move', id: m.id, nome: m.nome, w: m.w, h: m.h, gx: c.x - m.x, gy: c.y - m.y, sx0: e.clientX, sy0: e.clientY, freeX0: m.freeX || 0, freeY0: m.freeY || 0, outros } });
         }
@@ -2941,7 +3141,7 @@ class Component extends DCLogic {
     });
 
     // Grade corrente. No modo "Todas" isto vira uma chamada por tela.
-    const pecas = mapearPecas(cols, colW, rowH);
+    const pecas = mapearPecas(cols, colW, rowH, modoTodas ? null : (responsivo ? s.telaPrimaria : s.largura));
 
     /*
      * FRAMES — o canvas passa a desenhar sempre uma LISTA de telas.
@@ -2960,11 +3160,25 @@ class Component extends DCLogic {
       // Só a tela que está recebendo a interação desenha fantasma e laço; as
       // outras ficariam com um retângulo solto sem relação com o ponteiro.
       const ativa = !modoTodas || s.telaAtiva === t.w || (s.telaAtiva == null && iTela === 0);
+      const ehPrimaria = t.w === s.telaPrimaria;
+      const ajustadas = modoTodas && !ehPrimaria
+        ? s.pecas.filter(pc => temAjusteProprio(pc, t.w)).length
+        : 0;
       return {
         key: t.w,
         rotulo: t.rotulo,
         temRotulo: !!t.rotulo,
-        rotuloStyle: { display: 'block', marginBottom: 8, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: ativa ? cor : 'rgb(103,108,119)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' },
+        ehPrimaria,
+        naoEhPrimaria: modoTodas && !ehPrimaria,
+        selo: ehPrimaria ? 'principal' : 'tornar principal',
+        seloStyle: ehPrimaria
+          ? { marginLeft: 8, padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgb(18,20,24)', background: cor, whiteSpace: 'nowrap' }
+          : { marginLeft: 8, padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(129,134,146)', background: SUNK, boxShadow: SH_IN, cursor: 'pointer', whiteSpace: 'nowrap' },
+        onDefinirPrincipal: () => { if (!ehPrimaria) this.definirTelaPrincipal(t.w); },
+        temAjustes: ajustadas > 0,
+        ajustesRotulo: ajustadas + (ajustadas === 1 ? ' ajuste próprio' : ' ajustes próprios'),
+        ajustesStyle: { marginLeft: 8, fontSize: 9.5, fontWeight: 600, letterSpacing: '.04em', color: cor, whiteSpace: 'nowrap' },
+        rotuloStyle: { display: 'flex', alignItems: 'center', height: 22, marginBottom: 10, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: ativa ? cor : 'rgb(103,108,119)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' },
         colunaStyle: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flexShrink: 0 },
         frameStyle: {
           position: 'relative', width: t.w, height: t.h, overflow: 'hidden',
@@ -2982,8 +3196,16 @@ class Component extends DCLogic {
           height: '100%', boxSizing: 'border-box', overflow: 'hidden'
         },
         gridRef: (el) => { if (el) { this.gridEls = this.gridEls || {}; this.gridEls[t.w] = el; if (!modoTodas || iTela === 0) this.gridEl = el; } },
-        // Interagir numa tela torna ela a ativa: é dela que sai a conta
-        // ponteiro→célula, e é a contagem de colunas dela que vira a base.
+        /*
+         * Interagir numa tela torna ela a ativa: é dela que sai a conta
+         * ponteiro→célula e é ela que decide se a edição vira base ou ajuste
+         * local.
+         *
+         * `mouseover` além de `mouseenter` porque mouseenter NÃO BORBULHA: o
+         * ponteiro que entra direto numa peça nunca chegava à grade, e a
+         * edição era gravada como se fosse na tela principal — exatamente o
+         * vazamento que este modelo existe para impedir.
+         */
         onGridEnter: () => { if (modoTodas && s.telaAtiva !== t.w) this.setState({ telaAtiva: t.w }); },
         colunasGuia: Array.from({ length: t.cols }, (_, i) => ({
           key: i,
@@ -2997,7 +3219,7 @@ class Component extends DCLogic {
           backgroundSize: '8px 8px', backgroundPosition: margem + 'px ' + margem + 'px'
         },
         ativa,
-        pecas: modoTodas ? mapearPecas(t.cols, colWTela, rowHTela) : pecas
+        pecas: modoTodas ? mapearPecas(t.cols, colWTela, rowHTela, t.w) : pecas
       };
     });
 
@@ -3020,12 +3242,36 @@ class Component extends DCLogic {
       onMenos: () => aplicar(Math.max(min, value - 1)),
       onMais: () => aplicar(Math.min(max, value + 1))
     });
+    // Os números do Inspector são os DA TELA que está sendo editada. Mostrar os
+    // campos vivos (que espelham a matriz) faria o painel mentir sempre que a
+    // peça tivesse ajuste próprio ali.
+    const telaDoInspector = this.telaEditada();
+    const colsInspector = modoTodas
+      ? ((BREAKPOINTS.find(b => b.w === telaDoInspector) || {}).cols || cols)
+      : cols;
+    const gSel = sel ? geometriaEm(sel, telaDoInspector, s.telaPrimaria) : null;
+    const wSel = gSel ? Math.min(gSel.w, colsInspector) : 0;
+    const xSel = gSel ? Math.max(0, Math.min(gSel.x, colsInspector - wSel)) : 0;
     const posCampos = sel ? [
-      campoPos('x', 'Coluna', sel.x + 1, 1, cols - sel.w + 1, v => this.setGeo(sel.id, 'x', v - 1 - sel.x, 0, cols - sel.w)),
-      campoPos('y', 'Linha', sel.y + 1, 1, ROWS - sel.h + 1, v => this.setGeo(sel.id, 'y', v - 1 - sel.y, 0, ROWS - sel.h)),
-      campoPos('w', 'Largura (col)', sel.w, MIN_W[sel.tipo] || 1, cols, v => this.setGeo(sel.id, 'w', v - sel.w, MIN_W[sel.tipo] || 1, cols)),
-      campoPos('h', 'Altura (lin)', sel.h, 1, ROWS, v => this.setGeo(sel.id, 'h', v - sel.h, 1, ROWS))
+      campoPos('x', 'Coluna', xSel + 1, 1, colsInspector - wSel + 1, v => this.setGeo(sel.id, 'x', v - 1 - xSel, 0, colsInspector - wSel)),
+      campoPos('y', 'Linha', gSel.y + 1, 1, ROWS - gSel.h + 1, v => this.setGeo(sel.id, 'y', v - 1 - gSel.y, 0, ROWS - gSel.h)),
+      campoPos('w', 'Largura (col)', wSel, MIN_W[sel.tipo] || 1, colsInspector, v => this.setGeo(sel.id, 'w', v - wSel, MIN_W[sel.tipo] || 1, colsInspector)),
+      campoPos('h', 'Altura (lin)', gSel.h, 1, ROWS, v => this.setGeo(sel.id, 'h', v - gSel.h, 1, ROWS))
     ] : [];
+
+    // Faixa de herança: diz de onde esta peça está vindo nesta tela.
+    const telaSecundaria = telaDoInspector !== s.telaPrimaria;
+    const selTemAjuste = !!sel && telaSecundaria && temAjusteProprio(sel, telaDoInspector);
+    const heranca = {
+      mostrar: !!sel && telaSecundaria,
+      ajustada: selTemAjuste,
+      herdada: !!sel && telaSecundaria && !selTemAjuste,
+      textoAjustada: 'Ajustado só nesta tela (' + telaDoInspector + ')',
+      textoHerdada: 'Herdando da tela principal (' + s.telaPrimaria + ')',
+      style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10, background: SUNK, boxShadow: SH_IN, fontSize: 11, color: selTemAjuste ? cor : 'rgb(129,134,146)' },
+      restaurarStyle: { marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color: 'rgb(129,134,146)', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap' },
+      onRestaurar: () => sel && this.restaurarHeranca(sel.id, telaDoInspector)
+    };
 
     // ── Pergunta de sobreposição ────────────────────────────────────────────
     // Mesma linguagem do resto do builder: relevo, canto arredondado, o
@@ -3289,11 +3535,15 @@ class Component extends DCLogic {
       ghostStyle: s.ghost ? { gridColumn: (s.ghost.x + 1) + ' / span ' + s.ghost.w, gridRow: (s.ghost.y + 1) + ' / span ' + s.ghost.h, borderRadius: raio, background: SUNK, boxShadow: SH_IN + ', 0 0 0 2px ' + cor + '99, 0 0 24px ' + cor + '44', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 } : {},
       pecas,
       frames,
+      heranca,
+      mostrarHeranca: heranca.mostrar,
       modoTodas,
       // A pista que enfileira as telas. Fora do modo "Todas" ela é um contêiner
       // neutro de um item só, então o layout de sempre não muda.
       pistaFramesStyle: modoTodas
-        ? { display: 'flex', alignItems: 'flex-start', gap: VAO_TELAS, zoom: String(zoom) }
+        // O respiro no topo é para o rótulo de cada tela caber: sem ele o
+        // nome e o selo "principal" ficavam cortados na borda do canvas.
+        ? { display: 'flex', alignItems: 'flex-start', gap: VAO_TELAS, paddingTop: 34, zoom: String(zoom) }
         : { display: 'block', zoom: String(zoom) },
       vazio: s.pecas.length === 0,
       vazioStyle: { gridColumn: '1 / -1', gridRow: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' },
