@@ -2705,7 +2705,26 @@ class Component extends DCLogic {
      * corpo abaixo (boxW, gridColumn, arrasto) já trabalha na grade certa.
      */
     const mapearPecas = (cols, colW, rowH, larguraTela) => s.pecas.map((mOriginal, indice) => {
-      const m = projetar(mOriginal, cols, larguraTela, s.telaPrimaria);
+      /*
+       * FLUIDEZ — durante o arrasto, a peça segue o ponteiro.
+       *
+       * `geometriaEm` lê base + ajustes, que só são gravados ao SOLTAR. O
+       * `pointermove` do redimensionamento mexe nos campos vivos (x/y/w/h),
+       * então ler só a base fazia a peça ficar parada até o mouse subir — foi
+       * a regressão que o modo "Todas" introduziu.
+       *
+       * Enquanto a peça está sendo redimensionada ou arrastada, o render usa
+       * os campos vivos. No modo "Todas" isso vale só na tela em que a mão
+       * está: as outras continuam mostrando o que têm gravado, senão o arrasto
+       * numa tela faria as cinco tremerem juntas.
+       */
+      const emManipulacao =
+        (s.resizeInfo && s.resizeInfo.id === mOriginal.id) ||
+        (s.drag && s.drag.kind === 'move' && s.drag.id === mOriginal.id);
+      const telaDaMao = larguraTela == null || larguraTela === (s.telaAtiva || s.telaPrimaria);
+      const m = (emManipulacao && telaDaMao)
+        ? { ...mOriginal, w: Math.min(mOriginal.w, cols), x: Math.max(0, Math.min(mOriginal.x, cols - Math.min(mOriginal.w, cols))) }
+        : projetar(mOriginal, cols, larguraTela, s.telaPrimaria);
       const ajustadaAqui = larguraTela != null && larguraTela !== s.telaPrimaria && temAjusteProprio(mOriginal, larguraTela);
       const p = m.p;
       const boxW = m.w * colW + (m.w - 1) * gutter;
