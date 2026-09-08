@@ -331,6 +331,10 @@
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Marca personalizada</span>
 
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="text" value="{{ marca.nome }}" onInput="{{ marca.onNome }}" placeholder="Nome da marca" title="O nome desta paleta" style="{{ marca.nomeStyle }}" />
+            </div>
+
             <sc-for list="{{ marca.campos }}" as="mc" hint-placeholder-count="2">
               <div style="display:flex;flex-direction:column;gap:7px">
                 <div style="display:flex;align-items:center;gap:10px">
@@ -350,13 +354,26 @@
               </div>
             </sc-for>
 
+            <div title="As famílias neutras do DS, geradas a partir da matiz da primária" style="display:flex;flex-direction:column;gap:5px">
+              <sc-for list="{{ marca.neutras }}" as="nf" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="width:74px;flex-shrink:0;font-size:9.5px;color:rgb(103,108,119)">{{ nf.rotulo }}</span>
+                  <div style="flex:1;display:flex;min-width:0">
+                    <sc-for list="{{ nf.escala }}" as="tom" hint-placeholder-count="11">
+                      <span title="{{ tom.title }}" style="{{ tom.style }}"></span>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
             <div style="display:flex;align-items:center;gap:10px">
               <div onClick="{{ marca.onAplicar }}" style="{{ marca.botaoStyle }}">{{ marca.rotuloBotao }}</div>
               <sc-if value="{{ marca.podeLimpar }}" hint-placeholder-val="{{ false }}">
                 <span onClick="{{ marca.onLimpar }}" style="{{ marca.limparStyle }}">voltar ao preset</span>
               </sc-if>
             </div>
-            <span style="font-size:10.5px;line-height:1.5;color:rgb(103,108,119);text-wrap:pretty">Cada cor gera os 11 tons (50 a 950) no mesmo ritmo do Lumos. Success, info, warning e danger são fixas do sistema e não mudam.</span>
+            <span style="font-size:10.5px;line-height:1.5;color:rgb(103,108,119);text-wrap:pretty">A paleta inteira nasce das duas cores: primary e secondary com os 11 tons cada, e as famílias muted, background, header, menu e chat que o front-end usa. Success, info, warning e danger são fixas do sistema e não mudam.</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Raio das bordas</span>
@@ -366,7 +383,7 @@
               </sc-for>
             </div>
           </div>
-          <div style="padding:12px;border-radius:12px;background:rgb(26,28,32);box-shadow:inset 3px 3px 8px rgba(0,0,0,.5);font-size:10.5px;line-height:1.55;color:rgb(103,108,119);text-wrap:pretty">O preset repinta apenas os papéis semânticos. Neutros, espaçamento e raio seguem os tokens do Lumos.</div>
+          <div style="padding:12px;border-radius:12px;background:rgb(26,28,32);box-shadow:inset 3px 3px 8px rgba(0,0,0,.5);font-size:10.5px;line-height:1.55;color:rgb(103,108,119);text-wrap:pretty">O preset repinta apenas os papéis semânticos. Já a marca personalizada repinta a paleta inteira, neutros inclusive. Espaçamento e raio seguem os tokens do Lumos nos dois casos.</div>
         </div>
       </sc-if>
     </div>
@@ -1205,6 +1222,56 @@ const CURVA_SECONDARY = {
   H: [23, 25, 24, 24, 25, 26, 27, 27, 28, 27, 23]
 };
 
+/**
+ * As famílias neutras do Lumos — muted, background, header, menu, chat.
+ *
+ * Medi as nove modalidades completas do fig-tokens.css (:root do Lumos mais
+ * os oito data-mode) e o resultado foi claro: a LUMINOSIDADE e a SATURAÇÃO
+ * destas famílias são as MESMAS nos nove temas (desvio de 0,1 a 1,6 ponto
+ * percentual) — é regra fixa do sistema, não depende da cor da marca. O que
+ * muda entre um tema e outro é só a MATIZ, e ela acompanha a primária.
+ *
+ * Por isso a receita é: L e S vêm daqui, matiz vem da cor primária escolhida
+ * mais o deslocamento medido em `desloc`. Chat e chat-muted são as únicas com
+ * deslocamento real (+16°, consistente nos nove temas); o resto fica colado.
+ *
+ * Conferido também que as famílias são fatias da mesma rampa — background-500
+ * é igual a muted-950, menu-500 a muted-800, header-500 a muted-600. Manter as
+ * curvas separadas preserva isso sem precisar codificar a relação.
+ */
+const CURVAS_NEUTRAS = {
+  'muted':      { desloc: 0,    L: [96, 92.2, 84.6, 74.6, 63.6, 52.9, 42.5, 32.5, 23.1, 15.2, 8.7], S: [8.8, 8.7, 7.5, 7.6, 7.5, 7.1, 7.1, 7.9, 8.5, 9.7, 12.2] },
+  'background': { desloc: 0,    L: [91.8, 83.6, 67.9, 47.8, 27.1, 8.7, 6.2, 3.8, 1.9, 0.9, 0.4],    S: [1.6, 1.6, 1.4, 1.7, 3.9, 12.2, 14.5, 22.1, 19.5, 15.6, 0] },
+  'header':     { desloc: -2,   L: [95.2, 90.4, 80.9, 68.7, 55.3, 42.5, 34, 25.8, 18, 11.5, 6.2],   S: [7.7, 7.3, 5.8, 5.7, 5.6, 7.1, 7.9, 8.9, 10.1, 11.9, 15.4] },
+  'menu':       { desloc: 0,    L: [93.3, 86.8, 73.8, 57.2, 39.5, 23.1, 18, 13.1, 8.5, 4.7, 1.9],   S: [4.2, 4, 3.1, 2.9, 4.4, 8.5, 10, 11.4, 13.3, 19.1, 19.5] },
+  'chat':       { desloc: 16.5, L: [94.3, 88.6, 77.3, 62.8, 47.2, 32.5, 25.7, 19.2, 13.1, 7.9, 3.8], S: [8, 7.3, 6.1, 6.1, 6.7, 11.3, 13.2, 14.8, 17.1, 20.3, 28.8] },
+  'chat-muted': { desloc: 16,   L: [96.1, 92.3, 84.6, 74.5, 63.5, 52.8, 42.4, 32.5, 23, 15.1, 8.7],  S: [13.5, 12.7, 10.9, 10.8, 10.6, 10.1, 10.1, 11.3, 12.5, 13.9, 17.8] }
+};
+
+/**
+ * Os --brand-base-* são valores únicos, não escalas. Testei cada um contra
+ * todos os 88 tons dos nove temas para achar de onde saem:
+ *
+ *   base-muted  = chat-muted-950  — distância média 5,0 (máx 10). É regra.
+ *   base-chat   = chat-900        — média 9,9, e preserva a distinção que o
+ *                                   DS faz entre os dois (chat-muted-950 dá
+ *                                   9,7, praticamente igual, mas colaria os
+ *                                   dois tokens na mesma cor).
+ *   base-primary / base-secondary = passo 500 da própria família.
+ *
+ * ATENÇÃO, os dois últimos são APROXIMAÇÃO, não regra medida: entre os nove
+ * temas o base-primary cai ora no 400, ora no 500, 600 ou 700, sem padrão que
+ * eu tenha conseguido derivar. O 500 é o passo que minimiza o erro (média 51
+ * contra 61 do 600 e 82 do 400), então é o palpite mais defensável — mas é
+ * palpite. Se aparecer a regra de verdade no Figma, é aqui que se corrige.
+ */
+const BASES = {
+  'base-primary':   'primary-color-500',
+  'base-secondary': 'secondary-color-500',
+  'base-muted':     'chat-muted-950',
+  'base-chat':      'chat-900'
+};
+
 function hexParaHsl(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
   if (!m) return null;
@@ -1257,6 +1324,47 @@ function gerarEscala(hex, curva) {
     const novoH = base.h + (H[i] - Hancora);
     return { passo, cor: hslParaRgb(novoH, novoS, novoL) };
   });
+}
+
+/**
+ * Escala neutra (muted, background, header, menu, chat) a partir da matiz da
+ * primária. Diferente de gerarEscala: aqui L e S NÃO se movem — são a regra
+ * fixa medida no DS. Só a matiz é da marca.
+ */
+function gerarNeutra(huePrimaria, receita) {
+  return PASSOS.map((passo, i) => ({
+    passo,
+    cor: hslParaRgb(huePrimaria + receita.desloc, receita.S[i], receita.L[i])
+  }));
+}
+
+/**
+ * A paleta inteira a partir das duas cores. Devolve um mapa
+ * { 'primary-color-400': 'rgb(...)', 'muted-700': 'rgb(...)', 'base-chat': ... }
+ * já no formato do nome do token, sem o prefixo --brand-.
+ *
+ * O que NÃO está aqui é intencional: success, info, warning e danger são fixas
+ * do DS. Não são geradas, não são escritas, não são mostradas.
+ */
+function gerarPaleta(hexPrim, hexSec) {
+  const bp = hexParaHsl(hexPrim);
+  if (!bp) return null;
+  const saida = {};
+
+  const escP = gerarEscala(hexPrim, CURVA_PRIMARY) || [];
+  const escS = gerarEscala(hexSec, CURVA_SECONDARY) || [];
+  for (const e of escP) saida['primary-color-' + e.passo] = e.cor;
+  for (const e of escS) saida['secondary-color-' + e.passo] = e.cor;
+
+  for (const familia in CURVAS_NEUTRAS) {
+    for (const e of gerarNeutra(bp.h, CURVAS_NEUTRAS[familia])) {
+      saida[familia + '-' + e.passo] = e.cor;
+    }
+  }
+
+  for (const nome in BASES) saida[nome] = saida[BASES[nome]];
+
+  return saida;
 }
 
 const RAISED = 'linear-gradient(145deg, rgb(40,43,49), rgb(29,31,36))';
@@ -1593,8 +1701,8 @@ class Component extends DCLogic {
       // Marca personalizada: duas cores, das quais nascem as escalas 50–950.
       // As semânticas (success, info, warning, danger) NÃO entram: são fixas
       // do Lumos e não pertencem à marca.
-      marcaPrim: null, marcaSec: null,
-      marcaPrimRascunho: null, marcaSecRascunho: null,
+      marcaPrim: null, marcaSec: null, marcaNome: null,
+      marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
@@ -1986,25 +2094,31 @@ class Component extends DCLogic {
    * Escrevendo na base, tudo abaixo acompanha sem eu precisar listar cada
    * papel semântico.
    *
-   * Só primary e secondary. Neutros, espaçamento e raio seguem o Lumos, como
-   * o próprio painel promete.
+   * Desde que o Celio pediu a paleta completa, isto escreve também muted,
+   * background, header, menu, chat, chat-muted e os --brand-base-*: são as
+   * pré-definições que o time de front-end já consome. Espaçamento e raio
+   * continuam vindo do Lumos.
+   *
+   * Guardo os nomes escritos em _tokensDaMarca para o limparMarca conseguir
+   * desfazer exatamente o que pintou, sem lista duplicada que envelhece.
    */
   aplicarMarca(prim, sec) {
+    const paleta = gerarPaleta(prim, sec);
+    if (!paleta) return null;
     const raiz = document.documentElement;
-    const escP = prim && gerarEscala(prim, CURVA_PRIMARY);
-    const escS = sec && gerarEscala(sec, CURVA_SECONDARY);
-    if (escP) for (const e of escP) raiz.style.setProperty('--brand-primary-color-' + e.passo, e.cor);
-    if (escS) for (const e of escS) raiz.style.setProperty('--brand-secondary-color-' + e.passo, e.cor);
-    return { escP, escS };
+    for (const token in paleta) raiz.style.setProperty('--brand-' + token, paleta[token]);
+    this._tokensDaMarca = Object.keys(paleta);
+    return paleta;
   }
 
   limparMarca() {
     const raiz = document.documentElement;
-    for (const passo of PASSOS) {
-      raiz.style.removeProperty('--brand-primary-color-' + passo);
-      raiz.style.removeProperty('--brand-secondary-color-' + passo);
-    }
-    this.setState({ marcaPrim: null, marcaSec: null, marcaPrimRascunho: null, marcaSecRascunho: null });
+    for (const token of (this._tokensDaMarca || [])) raiz.style.removeProperty('--brand-' + token);
+    this._tokensDaMarca = null;
+    this.setState({
+      marcaPrim: null, marcaSec: null, marcaNome: null,
+      marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null
+    });
     this.flash('Marca personalizada removida — voltou ao preset');
   }
 
@@ -2015,7 +2129,7 @@ class Component extends DCLogic {
       const p = gerarEscala(this.state.marcaPrim, CURVA_PRIMARY);
       const sec = this.state.marcaSec ? gerarEscala(this.state.marcaSec, CURVA_SECONDARY) : null;
       return {
-        id: 'marca', nome: 'Marca personalizada',
+        id: 'marca', nome: this.state.marcaNome || 'Marca personalizada',
         p: p ? p[ANCORA].cor : this.state.marcaPrim,
         s: sec ? sec[ANCORA].cor : (p ? p[ANCORA + 1].cor : this.state.marcaPrim)
       };
@@ -2843,9 +2957,33 @@ class Component extends DCLogic {
         escala: escalaSec.map(e => amostra(e, 'secondary'))
       }
     ];
-    const marcaPendente = !!(s.marcaPrimRascunho || s.marcaSecRascunho);
+    // As famílias neutras que a marca também passa a gerar. Mostro em faixa
+    // fina só como prova visual de que a paleta inteira segue as duas cores.
+    const hueMarca = (hexParaHsl(prim) || { h: 223 }).h;
+    const marcaNeutras = Object.keys(CURVAS_NEUTRAS).map(familia => ({
+      key: familia,
+      rotulo: familia,
+      escala: gerarNeutra(hueMarca, CURVAS_NEUTRAS[familia]).map(e => ({
+        key: familia + e.passo,
+        title: familia + ' ' + e.passo + ' · ' + e.cor,
+        style: {
+          flex: 1, height: 12, minWidth: 0, background: e.cor,
+          borderRadius: e.passo === '50' ? '4px 0 0 4px' : e.passo === '950' ? '0 4px 4px 0' : 0
+        }
+      }))
+    }));
+
+    const marcaNome = s.marcaNomeRascunho != null ? s.marcaNomeRascunho : (s.marcaNome || '');
+    const marcaPendente = !!(s.marcaPrimRascunho || s.marcaSecRascunho || s.marcaNomeRascunho != null);
     const marca = {
       campos: marcaCampos,
+      neutras: marcaNeutras,
+      nome: marcaNome,
+      onNome: (e) => this.setState({ marcaNomeRascunho: e.target.value }),
+      nomeStyle: {
+        flex: 1, minWidth: 0, height: 32, padding: '0 11px', borderRadius: 9, border: 0, outline: 0,
+        fontSize: 11.5, fontWeight: 600, color: 'rgb(226,229,236)', background: SUNK, boxShadow: SH_IN
+      },
       aplicada: !!s.marcaPrim,
       podeLimpar: !!s.marcaPrim,
       rotuloBotao: marcaPendente ? 'Aplicar marca' : (s.marcaPrim ? 'Aplicada' : 'Aplicar marca'),
@@ -2861,9 +2999,15 @@ class Component extends DCLogic {
       onAplicar: () => {
         const p2 = s.marcaPrimRascunho || s.marcaPrim || prim;
         const s2 = s.marcaSecRascunho || s.marcaSec || sec;
-        this.aplicarMarca(p2, s2);
-        this.setState({ marcaPrim: p2, marcaSec: s2, marcaPrimRascunho: null, marcaSecRascunho: null, temaCustomCor: null });
-        this.flash('Marca aplicada — 22 tons gerados a partir das duas cores');
+        const nome = (marcaNome || '').trim() || null;
+        const paleta = this.aplicarMarca(p2, s2);
+        this.setState({
+          marcaPrim: p2, marcaSec: s2, marcaNome: nome,
+          marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
+          temaCustomCor: null
+        });
+        const quantos = paleta ? Object.keys(paleta).length : 0;
+        this.flash((nome ? '"' + nome + '" aplicada' : 'Marca aplicada') + ' — ' + quantos + ' tokens gerados a partir das duas cores');
       },
       onLimpar: () => this.limparMarca()
     };
