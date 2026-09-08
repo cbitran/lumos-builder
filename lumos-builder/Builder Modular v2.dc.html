@@ -329,17 +329,34 @@
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
-            <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Cor personalizada</span>
-            <div style="display:flex;align-items:center;gap:10px">
-              <label title="Escolher cor (conta-gotas, roda de cores ou hex)" style="width:40px;height:40px;flex-shrink:0;border-radius:11px;cursor:pointer;overflow:hidden;border:2px solid rgba(255,255,255,.15);background:{{ temaCustomSwatchBg }};position:relative">
-                <input type="color" value="{{ temaCustomCorValor }}" onInput="{{ onTemaCustomCorInput }}" style="position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border:0;padding:0;cursor:pointer;opacity:0" />
-              </label>
-              <div style="flex:1;display:flex;flex-direction:column;gap:2px">
-                <span style="font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums">{{ temaCustomLabel }}</span>
-                <span style="font-size:10px;color:rgb(103,108,119)">Conta-gotas, roda de cores ou hex</span>
+            <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Marca personalizada</span>
+
+            <sc-for list="{{ marca.campos }}" as="mc" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <label title="Conta-gotas, roda de cores ou hex" style="{{ mc.swatchStyle }}">
+                    <input type="color" value="{{ mc.valor }}" onInput="{{ mc.onInput }}" style="position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border:0;padding:0;cursor:pointer;opacity:0" />
+                  </label>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:1px;min-width:0">
+                    <span style="font-size:11.5px;font-weight:600">{{ mc.rotulo }}</span>
+                    <span style="font-size:10px;color:rgb(103,108,119);font-variant-numeric:tabular-nums">{{ mc.valor }}</span>
+                  </div>
+                </div>
+                <div title="Os 11 tons gerados. O contorno branco marca o 400, que é o tom padrão." style="display:flex;width:100%">
+                  <sc-for list="{{ mc.escala }}" as="tom" hint-placeholder-count="11">
+                    <span title="{{ tom.title }}" style="{{ tom.style }}"></span>
+                  </sc-for>
+                </div>
               </div>
-              <div onClick="{{ onAplicarTemaCustom }}" style="{{ aplicarTemaCustomStyle }}">Aplicar</div>
+            </sc-for>
+
+            <div style="display:flex;align-items:center;gap:10px">
+              <div onClick="{{ marca.onAplicar }}" style="{{ marca.botaoStyle }}">{{ marca.rotuloBotao }}</div>
+              <sc-if value="{{ marca.podeLimpar }}" hint-placeholder-val="{{ false }}">
+                <span onClick="{{ marca.onLimpar }}" style="{{ marca.limparStyle }}">voltar ao preset</span>
+              </sc-if>
             </div>
+            <span style="font-size:10.5px;line-height:1.5;color:rgb(103,108,119);text-wrap:pretty">Cada cor gera os 11 tons (50 a 950) no mesmo ritmo do Lumos. Success, info, warning e danger são fixas do sistema e não mudam.</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Raio das bordas</span>
@@ -1160,6 +1177,88 @@ const THEMES = [
   { id: 'lima', nome: 'Lima', p: 'rgb(125,181,58)', s: 'rgb(99,152,26)' }
 ];
 
+/*
+ * GERADOR DE MARCA — duas cores viram as escalas 50–950 do Lumos.
+ *
+ * As curvas abaixo NÃO foram inventadas: saíram medindo a escala real do
+ * `:root` do fig-tokens.css do Lumos. Repare que a saturação não é uma rampa —
+ * ela CAI no meio (600–700) e volta a SUBIR no escuro. Uma fórmula genérica
+ * de "clarear e escurecer" erraria esse desenho e a marca gerada não
+ * pareceria do mesmo sistema.
+ *
+ * As cores semânticas (success, info, warning, danger) ficam de fora de
+ * propósito: são fixas do DS e não pertencem à marca.
+ */
+const PASSOS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+const ANCORA = 4; // o passo 400 — é o que --color-primary-default aponta
+
+/* Medido de --brand-primary-color-* no :root do Lumos. */
+const CURVA_PRIMARY = {
+  L: [97.1, 94.3, 88.6, 81.0, 73.1, 64.9, 53.5, 42.0, 30.4, 20.6, 12.5],
+  S: [87, 100, 93, 92, 99, 98, 67, 64, 68, 73, 84],
+  H: [222, 221, 222, 222, 223, 225, 226, 226, 227, 227, 228]
+};
+/* Medido de --brand-secondary-color-* no mesmo lugar. */
+const CURVA_SECONDARY = {
+  L: [95.9, 91.8, 83.9, 73.3, 60.8, 48.2, 37.5, 27.6, 19.0, 12.5, 7.6],
+  S: [62, 57, 51, 51, 50, 50, 61, 73, 84, 91, 95],
+  H: [23, 25, 24, 24, 25, 26, 27, 27, 28, 27, 23]
+};
+
+function hexParaHsl(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d) {
+    h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return { h, s: sat * 100, l: l * 100 };
+}
+
+function hslParaRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360; s = Math.max(0, Math.min(100, s)) / 100; l = Math.max(0, Math.min(100, l)) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  const t = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+          : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return 'rgb(' + t.map(v => Math.round((v + m) * 255)).join(',') + ')';
+}
+
+/**
+ * Escala 50–950 a partir de UMA cor, no ritmo do Lumos.
+ *
+ * A cor escolhida vira EXATAMENTE o passo 400 — é o que a pessoa espera de
+ * "esta é a minha cor de marca". Os outros passos reancoram a curva do DS em
+ * torno dela: a distância relativa entre os passos é a do Lumos, mas esticada
+ * para começar na luminosidade da cor escolhida em vez da do azul original.
+ */
+function gerarEscala(hex, curva) {
+  const base = hexParaHsl(hex);
+  if (!base) return null;
+  const { L, S, H } = curva;
+  const Lancora = L[ANCORA], Sancora = S[ANCORA], Hancora = H[ANCORA];
+  const fatorS = Sancora > 0 ? base.s / Sancora : 1;
+  return PASSOS.map((passo, i) => {
+    let novoL;
+    if (i === ANCORA) novoL = base.l;
+    else if (i < ANCORA) {
+      // Proporção do caminho da âncora até o passo mais claro, preservada.
+      const t = (L[i] - Lancora) / (L[0] - Lancora);
+      novoL = base.l + t * (L[0] - base.l);
+    } else {
+      const t = (Lancora - L[i]) / (Lancora - L[L.length - 1]);
+      novoL = base.l - t * (base.l - L[L.length - 1]);
+    }
+    const novoS = Math.max(0, Math.min(100, S[i] * fatorS));
+    const novoH = base.h + (H[i] - Hancora);
+    return { passo, cor: hslParaRgb(novoH, novoS, novoL) };
+  });
+}
+
 const RAISED = 'linear-gradient(145deg, rgb(40,43,49), rgb(29,31,36))';
 const SH_UP = '5px 5px 12px rgba(0,0,0,.45), -4px -4px 10px rgba(255,255,255,.032)';
 const SH_IN = 'inset 4px 4px 10px rgba(0,0,0,.6), inset -3px -3px 8px rgba(255,255,255,.028)';
@@ -1491,6 +1590,11 @@ class Component extends DCLogic {
       canvasInfinito: true, camX: 0, camY: 0, camZoom: 1, hoverBorda: null, duplicarDirecao: 'lado',
       arquivoFundoPendente: null, fundoImagemDataUrl: null, fundoCorAlvo: 'dentro',
       temaCustomRascunho: null,
+      // Marca personalizada: duas cores, das quais nascem as escalas 50–950.
+      // As semânticas (success, info, warning, danger) NÃO entram: são fixas
+      // do Lumos e não pertencem à marca.
+      marcaPrim: null, marcaSec: null,
+      marcaPrimRascunho: null, marcaSecRascunho: null,
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
@@ -1874,7 +1978,48 @@ class Component extends DCLogic {
     document.addEventListener('pointerup', soltar);
   }
 
+  /**
+   * Injeta as escalas geradas nas variáveis --brand-*-color-*.
+   *
+   * Essa é a camada certa: --color-primary-400 é um ALIAS de
+   * --brand-primary-color-400, e --color-primary-default aponta para o 400.
+   * Escrevendo na base, tudo abaixo acompanha sem eu precisar listar cada
+   * papel semântico.
+   *
+   * Só primary e secondary. Neutros, espaçamento e raio seguem o Lumos, como
+   * o próprio painel promete.
+   */
+  aplicarMarca(prim, sec) {
+    const raiz = document.documentElement;
+    const escP = prim && gerarEscala(prim, CURVA_PRIMARY);
+    const escS = sec && gerarEscala(sec, CURVA_SECONDARY);
+    if (escP) for (const e of escP) raiz.style.setProperty('--brand-primary-color-' + e.passo, e.cor);
+    if (escS) for (const e of escS) raiz.style.setProperty('--brand-secondary-color-' + e.passo, e.cor);
+    return { escP, escS };
+  }
+
+  limparMarca() {
+    const raiz = document.documentElement;
+    for (const passo of PASSOS) {
+      raiz.style.removeProperty('--brand-primary-color-' + passo);
+      raiz.style.removeProperty('--brand-secondary-color-' + passo);
+    }
+    this.setState({ marcaPrim: null, marcaSec: null, marcaPrimRascunho: null, marcaSecRascunho: null });
+    this.flash('Marca personalizada removida — voltou ao preset');
+  }
+
   temaAtual() {
+    // A marca gerada manda: as peças do canvas usam o 400 de cada família,
+    // que é o mesmo passo que --color-primary-default aponta.
+    if (this.state.marcaPrim) {
+      const p = gerarEscala(this.state.marcaPrim, CURVA_PRIMARY);
+      const sec = this.state.marcaSec ? gerarEscala(this.state.marcaSec, CURVA_SECONDARY) : null;
+      return {
+        id: 'marca', nome: 'Marca personalizada',
+        p: p ? p[ANCORA].cor : this.state.marcaPrim,
+        s: sec ? sec[ANCORA].cor : (p ? p[ANCORA + 1].cor : this.state.marcaPrim)
+      };
+    }
     if (this.state.temaCustomCor) return { id: 'custom', nome: 'Personalizado', p: this.state.temaCustomCor, s: this.state.temaCustomCor };
     const nome = this.state.tema || this.props.temaInicial || 'Lumos Gaming';
     return THEMES.find(t => t.id === nome || t.nome === nome) || THEMES[0];
@@ -2668,6 +2813,60 @@ class Component extends DCLogic {
       { key: 'linhas', label: 'Linhas da grade', isRange: true, min: 8, max: 40, step: 1, value: s.linhasGrade, display: s.linhasGrade + ' × ' + rowH + 'px', onInput: e => { const n = Number(e.target.value); this.setState(st => ({ linhasGrade: n, pecas: st.pecas.map(p => { const h = Math.min(p.h, n); return { ...p, h, y: Math.min(p.y, n - h) }; }) })); } },
       { key: 'ima', label: 'Ímã (snap na malha)', isSwitch: true, value: s.ima, onToggle: () => this.setState({ ima: !s.ima }), ...this.swi(s.ima, UI) }
     ];
+
+    // ── Marca personalizada: primária + secundária ──────────────────────────
+    const prim = s.marcaPrimRascunho || s.marcaPrim || '#779dfe';
+    const sec  = s.marcaSecRascunho  || s.marcaSec  || '#cd9369';
+    const escalaPrim = gerarEscala(prim, CURVA_PRIMARY) || [];
+    const escalaSec  = gerarEscala(sec,  CURVA_SECONDARY) || [];
+    const amostra = (e, familia) => ({
+      key: familia + e.passo,
+      title: familia + ' ' + e.passo + ' · ' + e.cor,
+      style: {
+        flex: 1, height: 22, minWidth: 0,
+        background: e.cor,
+        borderRadius: e.passo === '50' ? '6px 0 0 6px' : e.passo === '950' ? '0 6px 6px 0' : 0,
+        boxShadow: e.passo === '400' ? 'inset 0 0 0 2px rgba(255,255,255,.85)' : 'none'
+      }
+    });
+    const marcaCampos = [
+      {
+        key: 'primaria', rotulo: 'Primária', valor: prim,
+        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: prim, position: 'relative' },
+        onInput: (e) => this.setState({ marcaPrimRascunho: e.target.value }),
+        escala: escalaPrim.map(e => amostra(e, 'primary'))
+      },
+      {
+        key: 'secundaria', rotulo: 'Secundária', valor: sec,
+        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: sec, position: 'relative' },
+        onInput: (e) => this.setState({ marcaSecRascunho: e.target.value }),
+        escala: escalaSec.map(e => amostra(e, 'secondary'))
+      }
+    ];
+    const marcaPendente = !!(s.marcaPrimRascunho || s.marcaSecRascunho);
+    const marca = {
+      campos: marcaCampos,
+      aplicada: !!s.marcaPrim,
+      podeLimpar: !!s.marcaPrim,
+      rotuloBotao: marcaPendente ? 'Aplicar marca' : (s.marcaPrim ? 'Aplicada' : 'Aplicar marca'),
+      botaoStyle: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center', height: 34, padding: '0 16px',
+        borderRadius: 10, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+        cursor: marcaPendente ? 'pointer' : 'default',
+        color: marcaPendente ? 'rgb(18,20,24)' : 'rgb(103,108,119)',
+        background: marcaPendente ? 'linear-gradient(145deg, ' + cor + ', ' + tema.s + ')' : SUNK,
+        boxShadow: marcaPendente ? '0 0 14px ' + cor + '55' : SH_IN
+      },
+      limparStyle: { fontSize: 11, fontWeight: 600, color: 'rgb(129,134,146)', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap' },
+      onAplicar: () => {
+        const p2 = s.marcaPrimRascunho || s.marcaPrim || prim;
+        const s2 = s.marcaSecRascunho || s.marcaSec || sec;
+        this.aplicarMarca(p2, s2);
+        this.setState({ marcaPrim: p2, marcaSec: s2, marcaPrimRascunho: null, marcaSecRascunho: null, temaCustomCor: null });
+        this.flash('Marca aplicada — 22 tons gerados a partir das duas cores');
+      },
+      onLimpar: () => this.limparMarca()
+    };
 
     const temaCustomAtual = s.temaCustomRascunho || s.temaCustomCor;
     const temaCustomSwatchBg = temaCustomAtual || 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)';
@@ -3554,6 +3753,7 @@ class Component extends DCLogic {
       ghostStyle: s.ghost ? { gridColumn: (s.ghost.x + 1) + ' / span ' + s.ghost.w, gridRow: (s.ghost.y + 1) + ' / span ' + s.ghost.h, borderRadius: raio, background: SUNK, boxShadow: SH_IN + ', 0 0 0 2px ' + cor + '99, 0 0 24px ' + cor + '44', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 } : {},
       pecas,
       frames,
+      marca,
       /*
        * A condição no template é `{{ heranca.mostrar }}`, com acesso pontuado.
        * Um booleano solto no topo (`mostrarHeranca`) NÃO resolvia — o bloco
