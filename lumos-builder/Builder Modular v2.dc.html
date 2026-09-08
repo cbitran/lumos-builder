@@ -354,17 +354,21 @@
               </div>
             </sc-for>
 
-            <div title="As famílias neutras do DS, geradas a partir da matiz da primária" style="display:flex;flex-direction:column;gap:5px">
-              <sc-for list="{{ marca.neutras }}" as="nf" hint-placeholder-count="6">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="width:74px;flex-shrink:0;font-size:9.5px;color:rgb(103,108,119)">{{ nf.rotulo }}</span>
-                  <div style="flex:1;display:flex;min-width:0">
-                    <sc-for list="{{ nf.escala }}" as="tom" hint-placeholder-count="11">
-                      <span title="{{ tom.title }}" style="{{ tom.style }}"></span>
-                    </sc-for>
-                  </div>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)">
+              <span style="font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgb(103,108,119)">Neutros do sistema</span>
+              <div title="Passe o mouse para ver a escala de cada família" style="display:flex;gap:7px">
+                <sc-for list="{{ marca.neutras }}" as="nf" hint-placeholder-count="6">
+                  <div title="{{ nf.title }}" onMouseEnter="{{ nf.onEnter }}" style="{{ nf.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px">
+                <span style="width:70px;flex-shrink:0;font-size:9.5px;color:rgb(129,134,146);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ marca.neutraFoco.rotulo }}</span>
+                <div style="flex:1;display:flex;min-width:0">
+                  <sc-for list="{{ marca.neutraFoco.escala }}" as="tom" hint-placeholder-count="11">
+                    <span title="{{ tom.title }}" style="{{ tom.style }}"></span>
+                  </sc-for>
                 </div>
-              </sc-for>
+              </div>
             </div>
 
             <div style="display:flex;align-items:center;gap:10px">
@@ -1703,6 +1707,7 @@ class Component extends DCLogic {
       // do Lumos e não pertencem à marca.
       marcaPrim: null, marcaSec: null, marcaNome: null,
       marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
+      neutraFoco: null, // família neutra sob o ponteiro, no painel de marca
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
@@ -2957,27 +2962,50 @@ class Component extends DCLogic {
         escala: escalaSec.map(e => amostra(e, 'secondary'))
       }
     ];
-    // As famílias neutras que a marca também passa a gerar. Mostro em faixa
-    // fina só como prova visual de que a paleta inteira segue as duas cores.
+    // As famílias neutras que a marca também gera. Seis faixas empilhadas
+    // ficavam feias e pesavam o painel sem informar muito — o que interessa
+    // de relance é que elas existem e seguem a marca. Então: um ponto por
+    // família com o tom 400 (o mesmo passo que o -default aponta), e a escala
+    // inteira só quando o ponteiro pousa em cima. Uma faixa por vez.
     const hueMarca = (hexParaHsl(prim) || { h: 223 }).h;
-    const marcaNeutras = Object.keys(CURVAS_NEUTRAS).map(familia => ({
-      key: familia,
-      rotulo: familia,
-      escala: gerarNeutra(hueMarca, CURVAS_NEUTRAS[familia]).map(e => ({
-        key: familia + e.passo,
-        title: familia + ' ' + e.passo + ' · ' + e.cor,
+    const focoNeutra = CURVAS_NEUTRAS[s.neutraFoco] ? s.neutraFoco : 'muted';
+    const marcaNeutras = Object.keys(CURVAS_NEUTRAS).map(familia => {
+      const tons = gerarNeutra(hueMarca, CURVAS_NEUTRAS[familia]);
+      const ativo = familia === focoNeutra;
+      return {
+        key: familia,
+        title: familia + ' · ' + tons[ANCORA].cor,
+        onEnter: () => this.setState({ neutraFoco: familia }),
         style: {
-          flex: 1, height: 12, minWidth: 0, background: e.cor,
+          flex: 1, height: 26, minWidth: 0, borderRadius: 8, cursor: 'default',
+          background: tons[ANCORA].cor,
+          // O anel dá contorno aos tons escuros — background e menu são quase
+          // pretos no 400 e sumiriam no fundo do painel sem ele.
+          boxShadow: ativo
+            ? 'inset 0 0 0 2px rgba(255,255,255,.85), 0 2px 6px rgba(0,0,0,.45)'
+            : 'inset 0 0 0 1px rgba(255,255,255,.14)'
+        }
+      };
+    });
+    const tonsFoco = gerarNeutra(hueMarca, CURVAS_NEUTRAS[focoNeutra]);
+    const marcaNeutraFoco = {
+      rotulo: focoNeutra,
+      escala: tonsFoco.map(e => ({
+        key: focoNeutra + e.passo,
+        title: focoNeutra + ' ' + e.passo + ' · ' + e.cor,
+        style: {
+          flex: 1, height: 14, minWidth: 0, background: e.cor,
           borderRadius: e.passo === '50' ? '4px 0 0 4px' : e.passo === '950' ? '0 4px 4px 0' : 0
         }
       }))
-    }));
+    };
 
     const marcaNome = s.marcaNomeRascunho != null ? s.marcaNomeRascunho : (s.marcaNome || '');
     const marcaPendente = !!(s.marcaPrimRascunho || s.marcaSecRascunho || s.marcaNomeRascunho != null);
     const marca = {
       campos: marcaCampos,
       neutras: marcaNeutras,
+      neutraFoco: marcaNeutraFoco,
       nome: marcaNome,
       onNome: (e) => this.setState({ marcaNomeRascunho: e.target.value }),
       nomeStyle: {
