@@ -343,7 +343,7 @@
                   </label>
                   <div style="flex:1;display:flex;flex-direction:column;gap:1px;min-width:0">
                     <span style="font-size:11.5px;font-weight:600">{{ mc.rotulo }}</span>
-                    <span style="font-size:10px;color:rgb(103,108,119);font-variant-numeric:tabular-nums">{{ mc.valor }}</span>
+                    <input type="text" value="{{ mc.hex }}" onInput="{{ mc.onHex }}" onBlur="{{ mc.onHexBlur }}" spellcheck="false" maxlength="7" placeholder="#000000" title="Digite o hex, ou use o quadrado ao lado para o conta-gotas e a roda de cores" style="{{ mc.hexStyle }}" />
                   </div>
                 </div>
                 <div title="Os 11 tons gerados. O contorno branco marca o 400, que é o tom padrão." style="display:flex;width:100%">
@@ -1276,6 +1276,17 @@ const BASES = {
   'base-chat':      'chat-900'
 };
 
+/**
+ * Texto digitado -> hex canônico de 6 dígitos, ou null se não der.
+ * Tolera '#' opcional, maiúsculas e a forma curta de três dígitos.
+ */
+function normalizarHex(texto) {
+  const t = String(texto == null ? '' : texto).trim().replace(/^#/, '');
+  if (/^[0-9a-f]{6}$/i.test(t)) return '#' + t.toLowerCase();
+  if (/^[0-9a-f]{3}$/i.test(t)) return '#' + t.toLowerCase().split('').map(c => c + c).join('');
+  return null;
+}
+
 function hexParaHsl(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
   if (!m) return null;
@@ -1707,7 +1718,8 @@ class Component extends DCLogic {
       // do Lumos e não pertencem à marca.
       marcaPrim: null, marcaSec: null, marcaNome: null,
       marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
-      neutraFoco: null, // família neutra sob o ponteiro, no painel de marca
+      neutraFoco: null,  // família neutra sob o ponteiro, no painel de marca
+      hexDigitado: null, // texto cru dos campos de hex enquanto se digita
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
@@ -2116,13 +2128,24 @@ class Component extends DCLogic {
     return paleta;
   }
 
+  // Descarta o texto cru de um campo de hex; o campo volta a espelhar a cor.
+  limparHexDigitado(chave) {
+    this.setState(st => {
+      if (!st.hexDigitado || st.hexDigitado[chave] == null) return null;
+      const resto = { ...st.hexDigitado };
+      delete resto[chave];
+      return { hexDigitado: resto };
+    });
+  }
+
   limparMarca() {
     const raiz = document.documentElement;
     for (const token of (this._tokensDaMarca || [])) raiz.style.removeProperty('--brand-' + token);
     this._tokensDaMarca = null;
     this.setState({
       marcaPrim: null, marcaSec: null, marcaNome: null,
-      marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null
+      marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
+      hexDigitado: null
     });
     this.flash('Marca personalizada removida — voltou ao preset');
   }
@@ -2948,19 +2971,52 @@ class Component extends DCLogic {
         boxShadow: e.passo === '400' ? 'inset 0 0 0 2px rgba(255,255,255,.85)' : 'none'
       }
     });
+    /**
+     * O hex é digitável, não só um rótulo do que o seletor escolheu.
+     *
+     * O texto cru fica em s.hexDigitado enquanto a pessoa escreve — sem isso,
+     * apagar um caractere deixaria o campo inválido e ele voltaria sozinho
+     * para o valor anterior no meio da digitação, impossível de usar. A cor
+     * só se move quando o que está escrito vira um hex completo.
+     *
+     * Aceita com ou sem '#', maiúsculo ou minúsculo, e a forma curta de três
+     * dígitos (#f0a vira #ff00aa), que é como muita gente anota cor de marca.
+     */
+    const campoDeCor = (chave, rotulo, valor, escala, setCor) => {
+      const digitado = s.hexDigitado && s.hexDigitado[chave];
+      const texto = digitado != null ? digitado : valor;
+      const valido = !!normalizarHex(texto);
+      return {
+        key: chave, rotulo, valor, hex: texto,
+        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: valor, position: 'relative' },
+        hexStyle: {
+          width: 92, padding: '3px 7px', borderRadius: 7, border: 0, outline: 0,
+          fontSize: 10.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '.04em', background: 'rgba(255,255,255,.045)',
+          // Vermelho enquanto o que está escrito não é um hex — sem alerta,
+          // sem mensagem: a própria cor do texto já diz.
+          color: valido ? 'rgb(155,161,175)' : 'rgb(248,113,113)'
+        },
+        // Vindo do seletor nativo: já é hex canônico, então limpo o rascunho
+        // de texto para o campo voltar a espelhar a cor.
+        onInput: (e) => { setCor(e.target.value); this.limparHexDigitado(chave); },
+        onHex: (e) => {
+          const cru = e.target.value;
+          this.setState(st => ({ hexDigitado: { ...(st.hexDigitado || {}), [chave]: cru } }));
+          const limpo = normalizarHex(cru);
+          if (limpo) setCor(limpo);
+        },
+        // Ao sair do campo, descarto o texto cru: o que fica é o hex canônico
+        // da cor em vigor. Se a pessoa saiu com algo inválido, some.
+        onHexBlur: () => this.limparHexDigitado(chave),
+        escala
+      };
+    };
     const marcaCampos = [
-      {
-        key: 'primaria', rotulo: 'Primária', valor: prim,
-        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: prim, position: 'relative' },
-        onInput: (e) => this.setState({ marcaPrimRascunho: e.target.value }),
-        escala: escalaPrim.map(e => amostra(e, 'primary'))
-      },
-      {
-        key: 'secundaria', rotulo: 'Secundária', valor: sec,
-        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: sec, position: 'relative' },
-        onInput: (e) => this.setState({ marcaSecRascunho: e.target.value }),
-        escala: escalaSec.map(e => amostra(e, 'secondary'))
-      }
+      campoDeCor('primaria', 'Primária', prim, escalaPrim.map(e => amostra(e, 'primary')),
+        (v) => this.setState({ marcaPrimRascunho: v })),
+      campoDeCor('secundaria', 'Secundária', sec, escalaSec.map(e => amostra(e, 'secondary')),
+        (v) => this.setState({ marcaSecRascunho: v }))
     ];
     // As famílias neutras que a marca também gera. Seis faixas empilhadas
     // ficavam feias e pesavam o painel sem informar muito — o que interessa
@@ -3032,7 +3088,7 @@ class Component extends DCLogic {
         this.setState({
           marcaPrim: p2, marcaSec: s2, marcaNome: nome,
           marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
-          temaCustomCor: null
+          hexDigitado: null, temaCustomCor: null
         });
         const quantos = paleta ? Object.keys(paleta).length : 0;
         this.flash((nome ? '"' + nome + '" aplicada' : 'Marca aplicada') + ' — ' + quantos + ' tokens gerados a partir das duas cores');
