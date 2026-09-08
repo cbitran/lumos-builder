@@ -317,8 +317,12 @@
 
       <sc-if value="{{ isTema }}" hint-placeholder-val="{{ false }}">
         <div style="flex:1;overflow-y:auto;padding:0 16px 18px;display:flex;flex-direction:column;gap:20px">
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Preset de marca</span>
+          <div style="{{ secPreset.caixaStyle }}">
+            <div onClick="{{ secPreset.onToggle }}" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+              <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Preset de marca</span>
+              <span style="{{ secPreset.chevronStyle }}"><x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideChevronDown" size="13" hint-size="13px,13px"></x-import></span>
+            </div>
+            <sc-if value="{{ secPreset.aberto }}" hint-placeholder-val="{{ true }}">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <sc-for list="{{ temas }}" as="t" hint-placeholder-count="9">
                 <div onClick="{{ t.onPick }}" style="{{ t.style }}">
@@ -327,9 +331,14 @@
                 </div>
               </sc-for>
             </div>
+            </sc-if>
           </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Marca personalizada</span>
+          <div style="{{ secMarca.caixaStyle }}">
+            <div onClick="{{ secMarca.onToggle }}" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+              <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Marca personalizada</span>
+              <span style="{{ secMarca.chevronStyle }}"><x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideChevronDown" size="13" hint-size="13px,13px"></x-import></span>
+            </div>
+            <sc-if value="{{ secMarca.aberto }}" hint-placeholder-val="{{ true }}">
 
             <div style="display:flex;align-items:center;gap:10px">
               <input type="text" value="{{ marca.nome }}" onInput="{{ marca.onNome }}" placeholder="Nome da marca" title="O nome desta paleta" style="{{ marca.nomeStyle }}" />
@@ -378,14 +387,20 @@
               </sc-if>
             </div>
             <span style="font-size:10.5px;line-height:1.5;color:rgb(103,108,119);text-wrap:pretty">A paleta inteira nasce das duas cores: primary e secondary com os 11 tons cada, e as famílias muted, background, header, menu e chat que o front-end usa. Success, info, warning e danger são fixas do sistema e não mudam.</span>
+            </sc-if>
           </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Raio das bordas</span>
+          <div style="{{ secRaio.caixaStyle }}">
+            <div onClick="{{ secRaio.onToggle }}" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+              <span style="font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgb(129,134,146)">Raio das bordas</span>
+              <span style="{{ secRaio.chevronStyle }}"><x-import component-from-global-scope="LumosDesignSystem_a19689.Icon" name="LucideChevronDown" size="13" hint-size="13px,13px"></x-import></span>
+            </div>
+            <sc-if value="{{ secRaio.aberto }}" hint-placeholder-val="{{ true }}">
             <div style="display:flex;gap:8px">
               <sc-for list="{{ raios }}" as="r" hint-placeholder-count="4">
                 <div onClick="{{ r.onPick }}" style="{{ r.style }}">{{ r.label }}</div>
               </sc-for>
             </div>
+            </sc-if>
           </div>
           <div style="padding:12px;border-radius:12px;background:rgb(26,28,32);box-shadow:inset 3px 3px 8px rgba(0,0,0,.5);font-size:10.5px;line-height:1.55;color:rgb(103,108,119);text-wrap:pretty">O preset repinta apenas os papéis semânticos. Já a marca personalizada repinta a paleta inteira, neutros inclusive. Espaçamento e raio seguem os tokens do Lumos nos dois casos.</div>
         </div>
@@ -1720,6 +1735,7 @@ class Component extends DCLogic {
       marcaPrimRascunho: null, marcaSecRascunho: null, marcaNomeRascunho: null,
       neutraFoco: null,  // família neutra sob o ponteiro, no painel de marca
       hexDigitado: null, // texto cru dos campos de hex enquanto se digita
+      temaSecoesFechadas: {}, // acordeões do painel Tema, como na Biblioteca
       paginaId: 'pg1', menuPaginas: false, dica: null,
       paginas: [{ id: 'pg1', nome: 'Página inicial', pecas: [] }], editandoPaginaId: null,
       pecas: [], drag: null, ghost: null,
@@ -2956,6 +2972,39 @@ class Component extends DCLogic {
       { key: 'ima', label: 'Ímã (snap na malha)', isSwitch: true, value: s.ima, onToggle: () => this.setState({ ima: !s.ima }), ...this.swi(s.ima, UI) }
     ];
 
+    /**
+     * Uma forma só para cor em todo o painel.
+     *
+     * Estava sem unidade: os presets em círculo, o swatch da marca em quadrado
+     * de canto 10, os neutros em canto 8, as escalas em faixa. O quadrado de
+     * canto arredondado já era a forma da cor no painel de propriedades (30px,
+     * canto 9), então é ele que vira a regra — quem muda são os círculos.
+     *
+     * O canto acompanha o lado na mesma proporção, ~30%, para um ponto de 14px
+     * e um swatch de 34px terem a mesma silhueta em escalas diferentes.
+     */
+    const cantoDe = (lado) => Math.round(lado * 0.3);
+
+    /**
+     * Acordeões do painel, na mesma linguagem da Biblioteca e do painel de
+     * propriedades: cabeçalho clicável, chevron que gira -90° ao fechar.
+     * Todos começam abertos — a seção só encolhe se a pessoa mandar.
+     */
+    const secaoTema = (chave) => {
+      const aberto = !s.temaSecoesFechadas[chave];
+      return {
+        aberto,
+        onToggle: () => this.setState(st => ({
+          temaSecoesFechadas: { ...st.temaSecoesFechadas, [chave]: !st.temaSecoesFechadas[chave] }
+        })),
+        chevronStyle: { display: 'flex', color: 'rgb(90,95,105)', transform: aberto ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' },
+        caixaStyle: { display: 'flex', flexDirection: 'column', gap: aberto ? 10 : 0 }
+      };
+    };
+    const secPreset = secaoTema('preset');
+    const secMarca = secaoTema('marca');
+    const secRaio = secaoTema('raio');
+
     // ── Marca personalizada: primária + secundária ──────────────────────────
     const prim = s.marcaPrimRascunho || s.marcaPrim || '#779dfe';
     const sec  = s.marcaSecRascunho  || s.marcaSec  || '#cd9369';
@@ -2967,7 +3016,8 @@ class Component extends DCLogic {
       style: {
         flex: 1, height: 22, minWidth: 0,
         background: e.cor,
-        borderRadius: e.passo === '50' ? '6px 0 0 6px' : e.passo === '950' ? '0 6px 6px 0' : 0,
+        borderRadius: e.passo === '50' ? cantoDe(22) + 'px 0 0 ' + cantoDe(22) + 'px'
+                    : e.passo === '950' ? '0 ' + cantoDe(22) + 'px ' + cantoDe(22) + 'px 0' : 0,
         boxShadow: e.passo === '400' ? 'inset 0 0 0 2px rgba(255,255,255,.85)' : 'none'
       }
     });
@@ -2988,7 +3038,7 @@ class Component extends DCLogic {
       const valido = !!normalizarHex(texto);
       return {
         key: chave, rotulo, valor, hex: texto,
-        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: valor, position: 'relative' },
+        swatchStyle: { width: 34, height: 34, flexShrink: 0, borderRadius: cantoDe(34), cursor: 'pointer', overflow: 'hidden', border: '2px solid rgba(255,255,255,.15)', background: valor, position: 'relative' },
         // Precisa PARECER campo. Na primeira versão eu tinha deixado só um
         // fundo de 4,5% de branco e, num painel escuro, isso lê como texto —
         // ninguém adivinha que dá para digitar ali. Moldura de 1px e o fundo
@@ -3038,7 +3088,7 @@ class Component extends DCLogic {
         title: familia + ' · ' + tons[ANCORA].cor,
         onEnter: () => this.setState({ neutraFoco: familia }),
         style: {
-          flex: 1, height: 26, minWidth: 0, borderRadius: 8, cursor: 'default',
+          flex: 1, height: 26, minWidth: 0, borderRadius: cantoDe(26), cursor: 'default',
           background: tons[ANCORA].cor,
           // O anel dá contorno aos tons escuros — background e menu são quase
           // pretos no 400 e sumiriam no fundo do painel sem ele.
@@ -3056,7 +3106,8 @@ class Component extends DCLogic {
         title: focoNeutra + ' ' + e.passo + ' · ' + e.cor,
         style: {
           flex: 1, height: 14, minWidth: 0, background: e.cor,
-          borderRadius: e.passo === '50' ? '4px 0 0 4px' : e.passo === '950' ? '0 4px 4px 0' : 0
+          borderRadius: e.passo === '50' ? cantoDe(14) + 'px 0 0 ' + cantoDe(14) + 'px'
+                      : e.passo === '950' ? '0 ' + cantoDe(14) + 'px ' + cantoDe(14) + 'px 0' : 0
         }
       }))
     };
@@ -3113,7 +3164,7 @@ class Component extends DCLogic {
       style: tema.id === t.id
         ? { display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', borderRadius: 11, cursor: 'pointer', background: RAISED, boxShadow: '3px 3px 8px rgba(0,0,0,.4), -2px -2px 6px rgba(255,255,255,.035), 0 0 12px ' + t.p + '44' }
         : { display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', borderRadius: 11, cursor: 'pointer', background: 'rgb(26,28,32)', boxShadow: 'inset 2px 2px 6px rgba(0,0,0,.45)' },
-      dotStyle: { width: 14, height: 14, borderRadius: 999, background: t.p, boxShadow: '0 0 8px ' + t.p, flexShrink: 0 }
+      dotStyle: { width: 14, height: 14, borderRadius: cantoDe(14), background: t.p, boxShadow: '0 0 8px ' + t.p, flexShrink: 0 }
     }));
 
     const raios = [4, 8, 12, 16].map(r => ({
@@ -3851,6 +3902,7 @@ class Component extends DCLogic {
       vistaListaStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, cursor: 'pointer', color: emLista ? UI : 'rgb(129,134,146)', background: emLista ? RAISED : 'transparent', boxShadow: emLista ? '2px 2px 6px rgba(0,0,0,.4), -1px -1px 4px rgba(255,255,255,.03)' : 'none' },
       estrutura, estruturaVazia: s.pecas.length === 0,
       gradeCampos, temas, raios, leituraStyle,
+      secPreset, secMarca, secRaio,
       temaCustomSwatchBg, temaCustomCorValor, temaCustomLabel, onTemaCustomCorInput, onAplicarTemaCustom, aplicarTemaCustomStyle,
       resetBtnStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 34, borderRadius: 10, cursor: 'pointer', fontSize: 11.5, fontWeight: 600, color: 'rgb(250,112,100)', background: RAISED, boxShadow: '4px 4px 10px rgba(0,0,0,.45), -3px -3px 8px rgba(255,255,255,.03), 0 0 14px rgba(250,112,100,.2)' },
       onResetarSel: () => sel && this.resetarElemento(sel.id),
